@@ -25,7 +25,7 @@ export default function App() {
     localStorage.setItem('current_view', newView);
   };
 
-  // Kiểm tra phiên làm việc khi load/refresh trang
+  // Kiểm tra phiên làm việc khi load hoặc refresh trang
   useEffect(() => {
     const savedView = localStorage.getItem('current_view') || 'INDEX';
 
@@ -38,11 +38,13 @@ export default function App() {
           setUserRole(role);
           localStorage.setItem('user_role', role);
 
-          if (['ADMIN', 'LEADER', 'USER', 'AUTH'].includes(savedView)) {
-            setView(role);
+          // Nếu đang ở trang Auth hoặc lưu các trang hệ thống, tự chuyển về đúng role dashboard
+          if (['ADMIN', 'LEADER', 'USER', 'AUTH'].includes(savedView) && savedView !== 'INDEX') {
+            changeView(role);
           }
         } else {
           setIsLoggedIn(false);
+          localStorage.removeItem('user_role');
           if (['ADMIN', 'LEADER', 'USER'].includes(savedView)) {
             changeView('AUTH');
           }
@@ -53,20 +55,21 @@ export default function App() {
       });
   }, []);
 
-  // Hàm gọi API lấy danh sách Node cho Admin/Leader (Đã bọc chống Crash)
-  const fetchAdminNodes = useCallback(() => {
-    fetch(`${API_BASE}/admin/nodes`, { credentials: 'include' })
+  // Hàm gọi API lấy danh sách Node cho Admin / Leader
+  const fetchDashboardNodes = useCallback(() => {
+    const endpoint = userRole === 'ADMIN' ? `${API_BASE}/admin/nodes` : `${API_BASE}/public/nodes`;
+
+    fetch(endpoint, { credentials: 'include' })
       .then(res => {
         if (res.status === 401 || res.status === 403) {
-          // Khi bị từ chối quyền, reset trạng thái đăng nhập về màn Login
           setIsLoggedIn(false);
+          localStorage.removeItem('user_role');
           changeView('AUTH');
           return null;
         }
         return res.json();
       })
       .then(data => {
-        // Chỉ gán dữ liệu nếu response thực sự là Mảng (Array)
         if (Array.isArray(data)) {
           setNodes(data);
         } else {
@@ -74,15 +77,15 @@ export default function App() {
         }
       })
       .catch(err => {
-        console.error('Lỗi lấy danh sách nodes admin:', err);
+        console.error('Lỗi lấy danh sách nodes quản trị:', err);
         setNodes([]);
       });
-  }, []);
+  }, [userRole]);
 
-  // Tải dữ liệu các nhánh dựa theo View hiện tại
+  // Tải dữ liệu các nhánh tự động dựa theo View hiện tại
   useEffect(() => {
     if (view === 'INDEX' || view === 'USER') {
-      fetch(`${API_BASE}/public/nodes`)
+      fetch(`${API_BASE}/public/nodes`, { credentials: 'include' })
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) setNodes(data);
@@ -92,25 +95,29 @@ export default function App() {
           console.error(err);
           setNodes([]);
         });
-    } else if (['ADMIN', 'LEADER'].includes(view)) {
-      fetchAdminNodes();
+    } else if (view === 'ADMIN' || view === 'LEADER') {
+      fetchDashboardNodes();
     }
-  }, [view, fetchAdminNodes]);
+  }, [view, fetchDashboardNodes]);
 
   const handleNodeClick = (node) => {
     const nodeId = node._id || node.id;
-    fetch(`${API_BASE}/public/nodes/${nodeId}/click`, { method: 'POST' });
+    fetch(`${API_BASE}/public/nodes/${nodeId}/click`, { method: 'POST' })
+      .catch(err => console.error('Lỗi tăng lượt click:', err));
     window.open(node.target_url || node.url, '_blank');
   };
 
   const handleLogout = () => {
-    fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).finally(() => {
-      setIsLoggedIn(false);
-      setUserRole('USER');
-      setNodes([]);
-      localStorage.removeItem('user_role');
-      changeView('INDEX');
-    });
+    fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
+      .catch(err => console.error('Lỗi đăng xuất:', err))
+      .finally(() => {
+        setIsLoggedIn(false);
+        setUserRole('USER');
+        setNodes([]);
+        localStorage.removeItem('user_role');
+        localStorage.removeItem('current_view');
+        changeView('INDEX');
+      });
   };
 
   return (
@@ -124,7 +131,7 @@ export default function App() {
           🌐 Navigation Portal
         </h1>
 
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 items-center">
           {view === 'INDEX' && !isLoggedIn && (
             <>
               <button
@@ -147,7 +154,7 @@ export default function App() {
               onClick={() => changeView(userRole)}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
             >
-              Vào trang {userRole}
+              Vào trang quản trị ({userRole})
             </button>
           )}
 
@@ -174,9 +181,29 @@ export default function App() {
             initialAuthMode={authMode}
           />
         )}
-        {view === 'ADMIN' && <AdminView nodes={nodes} refreshNodes={fetchAdminNodes} handleLogout={handleLogout} API_BASE={API_BASE} />}
-        {view === 'LEADER' && <LeaderView nodes={nodes} handleLogout={handleLogout} />}
-        {view === 'USER' && <UserView nodes={nodes} onNodeClick={handleNodeClick} handleLogout={handleLogout} />}
+        {view === 'ADMIN' && (
+          <AdminView
+            nodes={nodes}
+            refreshNodes={fetchDashboardNodes}
+            handleLogout={handleLogout}
+            API_BASE={API_BASE}
+          />
+        )}
+        {view === 'LEADER' && (
+          <LeaderView
+            nodes={nodes}
+            refreshNodes={fetchDashboardNodes}
+            handleLogout={handleLogout}
+            API_BASE={API_BASE}
+          />
+        )}
+        {view === 'USER' && (
+          <UserView
+            nodes={nodes}
+            onNodeClick={handleNodeClick}
+            handleLogout={handleLogout}
+          />
+        )}
       </div>
     </div>
   );
