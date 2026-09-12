@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import IndexView from './IndexView';
+import AuthView from './AuthView';
+import AdminView from './AdminView';
+import LeaderView from './LeaderView';
+import UserView from './UserView';
 
 const getApiBase = () => {
   const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
@@ -10,15 +15,17 @@ const API_BASE = getApiBase();
 
 export default function App() {
   const [view, setView] = useState(() => localStorage.getItem('current_view') || 'INDEX');
+  const [authMode, setAuthMode] = useState('LOGIN'); // 'LOGIN' hoặc 'REGISTER'
   const [nodes, setNodes] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('user_role') || 'USER');
 
   const changeView = (newView) => {
     setView(newView);
     localStorage.setItem('current_view', newView);
   };
 
-  // 1. Kiểm tra phiên đăng nhập & xử lý điều hướng chính xác khi F5
+  // Kiếm tra phiên làm việc khi load lại trang
   useEffect(() => {
     const savedView = localStorage.getItem('current_view') || 'INDEX';
 
@@ -27,51 +34,41 @@ export default function App() {
       .then(data => {
         if (data.success) {
           setIsLoggedIn(true);
-          if (savedView === 'ADMIN' || savedView === 'LOGIN') {
-            changeView('ADMIN');
+          const role = data.user?.role || 'USER';
+          setUserRole(role);
+          localStorage.setItem('user_role', role);
+
+          if (['ADMIN', 'LEADER', 'USER', 'AUTH'].includes(savedView)) {
+            setView(role); // Tự động chuyển về giao diện theo role
           }
         } else {
           setIsLoggedIn(false);
-          // Nếu đang muốn vào trang ADMIN mà chưa có cookie hợp lệ -> Bắt buộc về LOGIN
-          if (savedView === 'ADMIN') {
-            changeView('LOGIN');
+          if (['ADMIN', 'LEADER', 'USER'].includes(savedView)) {
+            changeView('AUTH');
           }
         }
       })
       .catch(() => {
         setIsLoggedIn(false);
-        if (savedView === 'ADMIN') {
-          changeView('LOGIN');
-        }
       });
   }, []);
 
-  // 2. Tải dữ liệu theo View
+  // Tải dữ liệu các nhánh
   useEffect(() => {
-    if (view === 'INDEX') {
+    if (view === 'INDEX' || view === 'USER') {
       fetch(`${API_BASE}/public/nodes`)
         .then(res => res.json())
         .then(data => setNodes(data))
-        .catch(err => console.error('Lỗi kết nối API:', err));
-    } else if (view === 'ADMIN') {
+        .catch(err => console.error(err));
+    } else if (['ADMIN', 'LEADER'].includes(view)) {
       fetchAdminNodes();
     }
   }, [view]);
 
   const fetchAdminNodes = () => {
     fetch(`${API_BASE}/admin/nodes`, { credentials: 'include' })
-      .then(res => {
-        if (res.status === 401 || res.status === 403) {
-          setIsLoggedIn(false);
-          changeView('LOGIN');
-          throw new Error('Phiên đăng nhập hết hạn');
-        }
-        return res.json();
-      })
-      .then(data => {
-        setNodes(data);
-        setIsLoggedIn(true);
-      })
+      .then(res => res.json())
+      .then(data => setNodes(data))
       .catch(err => console.error(err));
   };
 
@@ -81,9 +78,18 @@ export default function App() {
     window.open(node.target_url || node.url, '_blank');
   };
 
+  const handleLogout = () => {
+    fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).then(() => {
+      setIsLoggedIn(false);
+      setUserRole('USER');
+      localStorage.removeItem('user_role');
+      changeView('INDEX');
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
-      {/* Header Navigation */}
+      {/* Navigation Header */}
       <nav className="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center">
         <h1 
           className="text-xl font-bold text-blue-600 cursor-pointer"
@@ -91,15 +97,34 @@ export default function App() {
         >
           🌐 Navigation Portal
         </h1>
-        <div>
-          {view === 'INDEX' && (
+
+        <div className="flex space-x-3">
+          {view === 'INDEX' && !isLoggedIn && (
+            <>
+              <button
+                onClick={() => { setAuthMode('REGISTER'); changeView('AUTH'); }}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+              >
+                Tạo tài khoản
+              </button>
+              <button
+                onClick={() => { setAuthMode('LOGIN'); changeView('AUTH'); }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              >
+                Đăng nhập
+              </button>
+            </>
+          )}
+
+          {isLoggedIn && view === 'INDEX' && (
             <button
-              onClick={() => changeView(isLoggedIn ? 'ADMIN' : 'LOGIN')}
-              className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
+              onClick={() => changeView(userRole)}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
             >
-              {isLoggedIn ? 'Trang Admin' : 'Đăng nhập Admin'}
+              Vào trang {userRole}
             </button>
           )}
+
           {view !== 'INDEX' && (
             <button
               onClick={() => changeView('INDEX')}
@@ -111,280 +136,21 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main Content */}
+      {/* Main Content View Switcher */}
       <div className="max-w-5xl mx-auto p-6">
         {view === 'INDEX' && <IndexView nodes={nodes} onNodeClick={handleNodeClick} />}
-        {view === 'LOGIN' && <LoginView changeView={changeView} setIsLoggedIn={setIsLoggedIn} />}
-        {view === 'ADMIN' && (
-          <AdminView 
-            nodes={nodes} 
-            refreshNodes={fetchAdminNodes} 
+        {view === 'AUTH' && (
+          <AuthView 
+            API_BASE={API_BASE} 
             changeView={changeView} 
-            setIsLoggedIn={setIsLoggedIn}
+            setUserRole={setUserRole} 
+            setIsLoggedIn={setIsLoggedIn} 
+            initialAuthMode={authMode}
           />
         )}
-      </div>
-    </div>
-  );
-}
-
-// TRANG INDEX
-function IndexView({ nodes, onNodeClick }) {
-  return (
-    <div>
-      <div className="text-center my-8">
-        <h2 className="text-3xl font-extrabold text-gray-900">Cổng Điều Hướng Hệ Thống</h2>
-        <p className="text-gray-500 mt-2">Chọn các dịch vụ hoặc phân hệ cần truy cập bên dưới</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        {nodes.map((node) => (
-          <div
-            key={node._id || node.id}
-            onClick={() => onNodeClick(node)}
-            className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-500 cursor-pointer transition flex items-start space-x-4 group"
-          >
-            <div className="text-4xl p-3 bg-blue-50 rounded-lg group-hover:scale-110 transition-transform">
-              {node.icon || '🌐'}
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                {node.title}
-              </h3>
-              <p className="text-gray-600 text-sm mt-1">{node.description}</p>
-              <div className="mt-3 flex justify-between items-center text-xs text-gray-400">
-                <span className="text-blue-500 font-medium">Truy cập ngay &rarr;</span>
-                <span>{node.click_count || node.clicks || 0} lượt click</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// TRANG ĐĂNG NHẬP ADMIN
-function LoginView({ changeView, setIsLoggedIn }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-      credentials: 'include'
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setIsLoggedIn(true);
-          changeView('ADMIN');
-        } else {
-          alert(data.message || 'Đăng nhập thất bại');
-        }
-      })
-      .catch(err => console.error('Lỗi đăng nhập:', err));
-  };
-
-  return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md border mt-10">
-      <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Đăng Nhập Admin</h2>
-      <form onSubmit={handleLogin} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Tên tài khoản</label>
-          <input
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            className="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="admin"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Mật khẩu</label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="••••••••"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-medium transition"
-        >
-          Đăng Nhập
-        </button>
-      </form>
-    </div>
-  );
-}
-
-// TRANG ADMIN
-function AdminView({ nodes, refreshNodes, changeView, setIsLoggedIn }) {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    icon: '🌐',
-    url: '',
-    status: 'ACTIVE'
-  });
-
-  const handleCreate = (e) => {
-    e.preventDefault();
-    fetch(`${API_BASE}/admin/nodes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-      credentials: 'include'
-    }).then(() => {
-      refreshNodes();
-      setFormData({ title: '', description: '', icon: '🌐', url: '', status: 'ACTIVE' });
-    });
-  };
-
-  const handleDeleteNode = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa nhánh này?")) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/admin/nodes/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        alert("Xóa nhánh thành công!");
-        refreshNodes();
-      } else {
-        alert(data.message || "Không thể xóa nhánh!");
-      }
-    } catch (err) {
-      console.error("Lỗi khi xóa nhánh:", err);
-      alert("Lỗi kết nối máy chủ khi xóa!");
-    }
-  };
-
-  const handleLogout = () => {
-    fetch(`${API_BASE}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include'
-    }).then(() => {
-      setIsLoggedIn(false);
-      changeView('INDEX');
-    });
-  };
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Bảng Quản Lý Các Nhánh</h2>
-        <button 
-          onClick={handleLogout} 
-          className="text-red-600 hover:underline text-sm font-medium"
-        >
-          Đăng xuất
-        </button>
-      </div>
-
-      <div className="bg-white p-6 rounded-xl shadow-sm border mb-8">
-        <h3 className="text-lg font-bold mb-4 text-gray-700">Tạo Nhánh Điều Hướng Mới</h3>
-        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            placeholder="Tên Nhánh (VD: Cửa Hàng Online)"
-            value={formData.title}
-            onChange={e => setFormData({ ...formData, title: e.target.value })}
-            className="p-2 border rounded-md outline-none focus:border-blue-500"
-            required
-          />
-          <input
-            type="url"
-            placeholder="URL Đích (https://example.com)"
-            value={formData.url}
-            onChange={e => setFormData({ ...formData, url: e.target.value })}
-            className="p-2 border rounded-md outline-none focus:border-blue-500"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Icon Emoji (VD: 🛒)"
-            value={formData.icon}
-            onChange={e => setFormData({ ...formData, icon: e.target.value })}
-            className="p-2 border rounded-md outline-none focus:border-blue-500"
-          />
-          <select
-            value={formData.status}
-            onChange={e => setFormData({ ...formData, status: e.target.value })}
-            className="p-2 border rounded-md outline-none focus:border-blue-500"
-          >
-            <option value="ACTIVE">Hiển thị (ACTIVE)</option>
-            <option value="INACTIVE">Ẩn (INACTIVE)</option>
-          </select>
-          <textarea
-            placeholder="Mô tả ngắn gọn về nhánh"
-            value={formData.description}
-            onChange={e => setFormData({ ...formData, description: e.target.value })}
-            className="p-2 border rounded-md outline-none focus:border-blue-500 md:col-span-2"
-            rows="2"
-          ></textarea>
-          <button
-            type="submit"
-            className="md:col-span-2 bg-green-600 text-white py-2 rounded-md hover:bg-green-700 font-medium transition"
-          >
-            + Thêm Nhánh Mới
-          </button>
-        </form>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-100 text-xs font-semibold text-gray-600 uppercase">
-            <tr>
-              <th className="p-4">Icon</th>
-              <th className="p-4">Tên Nhánh</th>
-              <th className="p-4">URL Đích</th>
-              <th className="p-4">Lượt Click</th>
-              <th className="p-4">Trạng Thái</th>
-              <th className="p-4">Hành Động</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y text-sm">
-            {nodes.map(node => {
-              const nodeId = node._id || node.id;
-              return (
-                <tr key={nodeId} className="hover:bg-gray-50">
-                  <td className="p-4 text-2xl">{node.icon || '🌐'}</td>
-                  <td className="p-4 font-semibold">{node.title}</td>
-                  <td className="p-4 text-blue-600 truncate max-w-xs">{node.target_url || node.url}</td>
-                  <td className="p-4 font-mono">{node.click_count || node.clicks || 0}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      node.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {node.status || 'ACTIVE'}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <button
-                      onClick={() => handleDeleteNode(nodeId)}
-                      className="text-red-600 hover:underline font-medium"
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {view === 'ADMIN' && <AdminView nodes={nodes} refreshNodes={fetchAdminNodes} handleLogout={handleLogout} API_BASE={API_BASE} />}
+        {view === 'LEADER' && <LeaderView nodes={nodes} handleLogout={handleLogout} />}
+        {view === 'USER' && <UserView nodes={nodes} onNodeClick={handleNodeClick} handleLogout={handleLogout} />}
       </div>
     </div>
   );
