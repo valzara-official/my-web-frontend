@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
-// Tự động lấy URL từ file .env hoặc Vercel
-// Đảm bảo luôn có /api ở cuối URL
-const rawUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com/api';
-const API_BASE = rawUrl.endsWith('/api') ? rawUrl : `${rawUrl.replace(/\/$/, '')}/api`;
+const getApiBase = () => {
+  const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
+  const cleanUrl = envUrl.replace(/\/$/, ''); // Xóa dấu / ở cuối nếu có
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+
+const API_BASE = getApiBase();
 
 export default function App() {
   const [view, setView] = useState('INDEX'); // 'INDEX' | 'LOGIN' | 'ADMIN'
