@@ -4,12 +4,13 @@ export default function AuthView({ API_BASE, changeView, setUserRole, setIsLogge
   const [isRegisterMode, setIsRegisterMode] = useState(initialAuthMode === 'REGISTER');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('USER'); // Mặc định khi tạo tài khoản là USER
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const endpoint = isRegisterMode ? `${API_BASE}/auth/register` : `${API_BASE}/auth/login`;
-    const payload = isRegisterMode ? { username, password, role } : { username, password };
+
+    // Đăng ký chỉ gửi username & password, Backend tự cố định role là USER
+    const payload = { username: username.trim(), password };
 
     fetch(endpoint, {
       method: 'POST',
@@ -21,18 +22,21 @@ export default function AuthView({ API_BASE, changeView, setUserRole, setIsLogge
       .then(data => {
         if (data.success) {
           if (isRegisterMode) {
-            alert('Đăng ký thành công! Vui lòng đăng nhập.');
+            alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
             setIsRegisterMode(false);
+            setPassword('');
           } else {
-            setIsLoggedIn(true);
             const userRole = data.user?.role || 'USER';
+
+            // Cập nhật State và LocalStorage
+            setIsLoggedIn(true);
             setUserRole(userRole);
             localStorage.setItem('user_role', userRole);
 
-            // Tự động điều hướng theo quyền
-            if (userRole === 'ADMIN') changeView('ADMIN');
-            else if (userRole === 'LEADER') changeView('LEADER');
-            else changeView('USER');
+            // Chờ 100ms để đảm bảo trình duyệt lưu HTTP-Only Cookie trước khi gọi API Admin
+            setTimeout(() => {
+              changeView(userRole);
+            }, 100);
           }
         } else {
           alert(data.message || 'Thao tác thất bại!');
@@ -40,7 +44,7 @@ export default function AuthView({ API_BASE, changeView, setUserRole, setIsLogge
       })
       .catch(err => {
         console.error('Lỗi xác thực:', err);
-        alert('Lỗi kết nối máy chủ!');
+        alert('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại!');
       });
   };
 
@@ -75,21 +79,6 @@ export default function AuthView({ API_BASE, changeView, setUserRole, setIsLogge
           />
         </div>
 
-        {isRegisterMode && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Vai trò đăng ký</label>
-            <select
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              className="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-            >
-              <option value="USER">Thành viên (User)</option>
-              <option value="LEADER">Quản lý nhóm (Leader)</option>
-              <option value="ADMIN">Quản trị viên (Admin)</option>
-            </select>
-          </div>
-        )}
-
         <button
           type="submit"
           className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-medium transition"
@@ -102,14 +91,22 @@ export default function AuthView({ API_BASE, changeView, setUserRole, setIsLogge
         {isRegisterMode ? (
           <span>
             Đã có tài khoản?{' '}
-            <button onClick={() => setIsRegisterMode(false)} className="text-blue-600 font-semibold hover:underline">
+            <button
+              type="button"
+              onClick={() => setIsRegisterMode(false)}
+              className="text-blue-600 font-semibold hover:underline"
+            >
               Đăng nhập ngay
             </button>
           </span>
         ) : (
           <span>
-            Chưa có tài khoản?{' '}
-            <button onClick={() => setIsRegisterMode(true)} className="text-blue-600 font-semibold hover:underline">
+            Chưa có tài khoản?{ ' '}
+            <button
+              type="button"
+              onClick={() => setIsRegisterMode(true)}
+              className="text-blue-600 font-semibold hover:underline"
+            >
               Tạo tài khoản mới
             </button>
           </span>

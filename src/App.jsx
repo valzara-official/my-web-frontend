@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import IndexView from './page/IndexView';
 import AuthView from './page/AuthView';
 import AdminView from './page/AdminView';
@@ -15,7 +15,7 @@ const API_BASE = getApiBase();
 
 export default function App() {
   const [view, setView] = useState(() => localStorage.getItem('current_view') || 'INDEX');
-  const [authMode, setAuthMode] = useState('LOGIN'); // 'LOGIN' hoặc 'REGISTER'
+  const [authMode, setAuthMode] = useState('LOGIN');
   const [nodes, setNodes] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(() => localStorage.getItem('user_role') || 'USER');
@@ -25,7 +25,7 @@ export default function App() {
     localStorage.setItem('current_view', newView);
   };
 
-  // Kiếm tra phiên làm việc khi load lại trang
+  // Kiểm tra phiên làm việc khi load/refresh trang
   useEffect(() => {
     const savedView = localStorage.getItem('current_view') || 'INDEX';
 
@@ -39,7 +39,7 @@ export default function App() {
           localStorage.setItem('user_role', role);
 
           if (['ADMIN', 'LEADER', 'USER', 'AUTH'].includes(savedView)) {
-            setView(role); // Tự động chuyển về giao diện theo role
+            setView(role);
           }
         } else {
           setIsLoggedIn(false);
@@ -53,24 +53,49 @@ export default function App() {
       });
   }, []);
 
-  // Tải dữ liệu các nhánh
+  // Hàm gọi API lấy danh sách Node cho Admin/Leader (Đã bọc chống Crash)
+  const fetchAdminNodes = useCallback(() => {
+    fetch(`${API_BASE}/admin/nodes`, { credentials: 'include' })
+      .then(res => {
+        if (res.status === 401 || res.status === 403) {
+          // Khi bị từ chối quyền, reset trạng thái đăng nhập về màn Login
+          setIsLoggedIn(false);
+          changeView('AUTH');
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        // Chỉ gán dữ liệu nếu response thực sự là Mảng (Array)
+        if (Array.isArray(data)) {
+          setNodes(data);
+        } else {
+          setNodes([]);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi lấy danh sách nodes admin:', err);
+        setNodes([]);
+      });
+  }, []);
+
+  // Tải dữ liệu các nhánh dựa theo View hiện tại
   useEffect(() => {
     if (view === 'INDEX' || view === 'USER') {
       fetch(`${API_BASE}/public/nodes`)
         .then(res => res.json())
-        .then(data => setNodes(data))
-        .catch(err => console.error(err));
+        .then(data => {
+          if (Array.isArray(data)) setNodes(data);
+          else setNodes([]);
+        })
+        .catch(err => {
+          console.error(err);
+          setNodes([]);
+        });
     } else if (['ADMIN', 'LEADER'].includes(view)) {
       fetchAdminNodes();
     }
-  }, [view]);
-
-  const fetchAdminNodes = () => {
-    fetch(`${API_BASE}/admin/nodes`, { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => setNodes(data))
-      .catch(err => console.error(err));
-  };
+  }, [view, fetchAdminNodes]);
 
   const handleNodeClick = (node) => {
     const nodeId = node._id || node.id;
@@ -79,9 +104,10 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).then(() => {
+    fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).finally(() => {
       setIsLoggedIn(false);
       setUserRole('USER');
+      setNodes([]);
       localStorage.removeItem('user_role');
       changeView('INDEX');
     });
@@ -91,7 +117,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
       {/* Navigation Header */}
       <nav className="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center">
-        <h1 
+        <h1
           className="text-xl font-bold text-blue-600 cursor-pointer"
           onClick={() => changeView('INDEX')}
         >
@@ -140,11 +166,11 @@ export default function App() {
       <div className="max-w-5xl mx-auto p-6">
         {view === 'INDEX' && <IndexView nodes={nodes} onNodeClick={handleNodeClick} />}
         {view === 'AUTH' && (
-          <AuthView 
-            API_BASE={API_BASE} 
-            changeView={changeView} 
-            setUserRole={setUserRole} 
-            setIsLoggedIn={setIsLoggedIn} 
+          <AuthView
+            API_BASE={API_BASE}
+            changeView={changeView}
+            setUserRole={setUserRole}
+            setIsLoggedIn={setIsLoggedIn}
             initialAuthMode={authMode}
           />
         )}
