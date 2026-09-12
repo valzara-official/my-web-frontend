@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 // Tự động lấy URL từ file .env hoặc Vercel
-const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api';
+// Đảm bảo luôn có /api ở cuối URL
+const rawUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com/api';
+const API_BASE = rawUrl.endsWith('/api') ? rawUrl : `${rawUrl.replace(/\/$/, '')}/api`;
 
 export default function App() {
   const [view, setView] = useState('INDEX'); // 'INDEX' | 'LOGIN' | 'ADMIN'
