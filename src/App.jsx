@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const getApiBase = () => {
   const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
-  const cleanUrl = envUrl.replace(/\/$/, ''); // Xóa dấu / ở cuối nếu có
+  const cleanUrl = envUrl.replace(/\/$/, '');
   return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 };
 
@@ -13,6 +13,20 @@ export default function App() {
   const [nodes, setNodes] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  // Auto Check phiên đăng nhập Admin khi tải trang / F5
+  useEffect(() => {
+    fetch(`${API_BASE}/admin/nodes`, { credentials: 'include' })
+      .then(res => {
+        if (res.ok) {
+          setIsLoggedIn(true);
+        } else {
+          setIsLoggedIn(false);
+        }
+      })
+      .catch(() => setIsLoggedIn(false));
+  }, []);
+
+  // Tải dữ liệu theo View
   useEffect(() => {
     if (view === 'INDEX') {
       fetch(`${API_BASE}/public/nodes`)
@@ -25,9 +39,7 @@ export default function App() {
   }, [view]);
 
   const fetchAdminNodes = () => {
-    fetch(`${API_BASE}/admin/nodes`, {
-      credentials: 'include' // Tự động gửi HttpOnly Cookie
-    })
+    fetch(`${API_BASE}/admin/nodes`, { credentials: 'include' })
       .then(res => {
         if (res.status === 401 || res.status === 403) {
           setIsLoggedIn(false);
@@ -44,7 +56,7 @@ export default function App() {
   };
 
   const handleNodeClick = (node) => {
-    const nodeId = node.id || node._id;
+    const nodeId = node._id || node.id;
     fetch(`${API_BASE}/public/nodes/${nodeId}/click`, { method: 'POST' });
     window.open(node.target_url || node.url, '_blank');
   };
@@ -96,7 +108,7 @@ export default function App() {
   );
 }
 
-// 1. TRANG INDEX (Dành cho người dùng)
+// 1. TRANG INDEX
 function IndexView({ nodes, onNodeClick }) {
   return (
     <div>
@@ -108,7 +120,7 @@ function IndexView({ nodes, onNodeClick }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         {nodes.map((node) => (
           <div
-            key={node.id || node._id}
+            key={node._id || node.id}
             onClick={() => onNodeClick(node)}
             className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-500 cursor-pointer transition flex items-start space-x-4 group"
           >
@@ -132,7 +144,7 @@ function IndexView({ nodes, onNodeClick }) {
   );
 }
 
-// 2. TRANG ĐĂNG NHẬP ADMIN (HttpOnly Cookie)
+// 2. TRANG ĐĂNG NHẬP ADMIN
 function LoginView({ setView, setIsLoggedIn }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -143,7 +155,7 @@ function LoginView({ setView, setIsLoggedIn }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
-      credentials: 'include' // Nhận Set-Cookie từ Backend
+      credentials: 'include'
     })
       .then(res => res.json())
       .then(data => {
@@ -151,7 +163,7 @@ function LoginView({ setView, setIsLoggedIn }) {
           setIsLoggedIn(true);
           setView('ADMIN');
         } else {
-          alert(data.message);
+          alert(data.message || 'Đăng nhập thất bại');
         }
       })
       .catch(err => console.error('Lỗi đăng nhập:', err));
@@ -194,7 +206,7 @@ function LoginView({ setView, setIsLoggedIn }) {
   );
 }
 
-// 3. TRANG ADMIN (Gửi Cookie xác thực)
+// 3. TRANG ADMIN
 function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -210,44 +222,40 @@ function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData),
-      credentials: 'include' // Gửi HttpOnly Cookie xác thực
+      credentials: 'include'
     }).then(() => {
       refreshNodes();
       setFormData({ title: '', description: '', icon: '🌐', url: '', status: 'ACTIVE' });
     });
   };
 
-const handleDeleteNode = async (id) => {
-  if (!window.confirm("Bạn có chắc chắn muốn xóa nhánh này?")) return;
+  const handleDeleteNode = async (id) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa nhánh này?")) return;
 
-  try {
-    const res = await fetch(`${API_BASE}/admin/nodes/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include' // RẤT QUAN TRỌNG: Gửi cookie HttpOnly xác thực Admin lên Backend
-    });
+    try {
+      const res = await fetch(`${API_BASE}/admin/nodes/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok) {
-      alert("Xóa nhánh thành công!");
-      // Cập nhật lại danh sách trên giao diện
-      setNodes(prevNodes => prevNodes.filter(node => node._id !== id));
-    } else {
-      alert(data.message || "Không thể xóa nhánh!");
+      if (res.ok) {
+        alert("Xóa nhánh thành công!");
+        refreshNodes(); // Gọi lại API lấy danh sách mới nhất
+      } else {
+        alert(data.message || "Không thể xóa nhánh!");
+      }
+    } catch (err) {
+      console.error("Lỗi khi xóa nhánh:", err);
+      alert("Lỗi kết nối máy chủ khi xóa!");
     }
-  } catch (err) {
-    console.error("Lỗi khi xóa nhánh:", err);
-    alert("Lỗi kết nối máy chủ khi xóa!");
-  }
-};
+  };
 
   const handleLogout = () => {
     fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
-      credentials: 'include' // Gửi request xóa Cookie trên Server
+      credentials: 'include'
     }).then(() => {
       setIsLoggedIn(false);
       setView('INDEX');
@@ -331,29 +339,32 @@ const handleDeleteNode = async (id) => {
             </tr>
           </thead>
           <tbody className="divide-y text-sm">
-            {nodes.map(node => (
-              <tr key={node.id || node._id} className="hover:bg-gray-50">
-                <td className="p-4 text-2xl">{node.icon || '🌐'}</td>
-                <td className="p-4 font-semibold">{node.title}</td>
-                <td className="p-4 text-blue-600 truncate max-w-xs">{node.target_url || node.url}</td>
-                <td className="p-4 font-mono">{node.click_count || node.clicks || 0}</td>
-                <td className="p-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    node.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {node.status || 'ACTIVE'}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <button
-                    onClick={() => handleDeleteNode(node._id)}
-                    className="text-red-600 hover:underline font-medium"
-                  >
-                    Xóa
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {nodes.map(node => {
+              const nodeId = node._id || node.id;
+              return (
+                <tr key={nodeId} className="hover:bg-gray-50">
+                  <td className="p-4 text-2xl">{node.icon || '🌐'}</td>
+                  <td className="p-4 font-semibold">{node.title}</td>
+                  <td className="p-4 text-blue-600 truncate max-w-xs">{node.target_url || node.url}</td>
+                  <td className="p-4 font-mono">{node.click_count || node.clicks || 0}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      node.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {node.status || 'ACTIVE'}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => handleDeleteNode(nodeId)}
+                      className="text-red-600 hover:underline font-medium"
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
