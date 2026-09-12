@@ -217,14 +217,32 @@ function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
     });
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Bạn có chắc muốn xóa nhánh này?')) {
-      fetch(`${API_BASE}/admin/nodes/${id}`, {
-        method: 'DELETE',
-        credentials: 'include' // Gửi HttpOnly Cookie xác thực
-      }).then(() => refreshNodes());
+const handleDeleteNode = async (id) => {
+  if (!window.confirm("Bạn có chắc chắn muốn xóa nhánh này?")) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/admin/nodes/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include' // RẤT QUAN TRỌNG: Gửi cookie HttpOnly xác thực Admin lên Backend
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("Xóa nhánh thành công!");
+      // Cập nhật lại danh sách trên giao diện
+      setNodes(prevNodes => prevNodes.filter(node => node._id !== id));
+    } else {
+      alert(data.message || "Không thể xóa nhánh!");
     }
-  };
+  } catch (err) {
+    console.error("Lỗi khi xóa nhánh:", err);
+    alert("Lỗi kết nối máy chủ khi xóa!");
+  }
+};
 
   const handleLogout = () => {
     fetch(`${API_BASE}/auth/logout`, {
@@ -328,7 +346,7 @@ function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
                 </td>
                 <td className="p-4">
                   <button
-                    onClick={() => handleDelete(node.id || node._id)}
+                    onClick={() => handleDeleteNode(node._id)}
                     className="text-red-600 hover:underline font-medium"
                   >
                     Xóa
