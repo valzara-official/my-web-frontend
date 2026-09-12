@@ -85,7 +85,8 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
         } else {
           alert(data.message || 'Lỗi khi xóa node');
         }
-      });
+      })
+      .catch(err => console.error(err));
   };
 
   // Xử lý Tài khoản
@@ -108,7 +109,8 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
         } else {
           alert(data.message || 'Lỗi cấp tài khoản');
         }
-      });
+      })
+      .catch(err => console.error(err));
   };
 
   const handleDeleteUser = (id) => {
@@ -117,16 +119,25 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
       .then(res => res.json())
       .then(data => {
         if (data.success) fetchUsers();
-        else alert(data.message);
-      });
+        else alert(data.message || 'Lỗi khi xóa tài khoản');
+      })
+      .catch(err => console.error(err));
   };
 
   const handleUpdateUser = (e) => {
     e.preventDefault();
-    fetch(`${API_BASE}/auth/users/${editingUser._id}`, {
+    if (!editingUser) return;
+    
+    // Chỉ gửi password nếu người dùng có nhập mật khẩu mới
+    const updateData = { username: editUsername, role: editRole };
+    if (editPassword.trim() !== '') {
+      updateData.password = editPassword;
+    }
+
+    fetch(`${API_BASE}/auth/users/${editingUser._id || editingUser.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: editUsername, password: editPassword, role: editRole }),
+      body: JSON.stringify(updateData),
       credentials: 'include'
     })
       .then(res => res.json())
@@ -136,9 +147,10 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
           setEditingUser(null);
           fetchUsers();
         } else {
-          alert(data.message);
+          alert(data.message || 'Lỗi cập nhật tài khoản');
         }
-      });
+      })
+      .catch(err => console.error(err));
   };
 
   // Tính toán số liệu thống kê cho Overview
@@ -219,7 +231,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                     const percent = (clicks / maxClicks) * 100;
 
                     return (
-                      <div key={node._id || index} className="bg-gray-50 p-3 rounded-lg border">
+                      <div key={node._id || node.id || index} className="bg-gray-50 p-3 rounded-lg border">
                         <div className="flex justify-between text-sm mb-1">
                           <span className="font-medium text-gray-800">{node.title}</span>
                           <span className="text-blue-600 font-semibold">{clicks} lượt click</span>
@@ -424,7 +436,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                   </thead>
                   <tbody className="divide-y text-sm">
                     {users.map((u) => (
-                      <tr key={u._id} className="hover:bg-gray-50">
+                      <tr key={u._id || u.id} className="hover:bg-gray-50">
                         <td className="p-3 font-medium text-gray-800">{u.username}</td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${
@@ -442,7 +454,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                             Sửa
                           </button>
                           <button
-                            onClick={() => handleDeleteUser(u._id)}
+                            onClick={() => handleDeleteUser(u._id || u.id)}
                             className="text-red-600 bg-red-50 px-2.5 py-1 rounded text-xs font-medium hover:bg-red-100"
                           >
                             Xóa
@@ -472,7 +484,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
                   required
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border-2 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -481,7 +493,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                   type="password"
                   value={editPassword}
                   onChange={(e) => setEditPassword(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border-2 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nhập pass mới..."
                 />
               </div>
@@ -490,7 +502,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                 <select
                   value={editRole}
                   onChange={(e) => setEditRole(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full border-2 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   <option value="USER">USER</option>
                   <option value="LEADER">LEADER</option>

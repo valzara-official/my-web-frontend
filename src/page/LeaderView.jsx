@@ -3,27 +3,28 @@ import React, { useState, useEffect } from 'react';
 export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'nodes', 'users'
   const [users, setUsers] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isSubmittingNode, setIsSubmittingNode] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // States cho quản lý Nodes (Thêm / Sửa)
+  // States cho quản lý Nodes (Thêm / Sửa / Xóa)
   const [nodeForm, setNodeForm] = useState({ title: '', url: '', description: '', category: '' });
   const [editingNodeId, setEditingNodeId] = useState(null);
 
-  // States cho quản lý Tài khoản (Leader chỉ tạo User)
+  // States cấp tài khoản User mới
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  
-  const [editingUser, setEditingUser] = useState(null);
-  const [editUsername, setEditUsername] = useState('');
-  const [editPassword, setEditPassword] = useState('');
 
   // Lấy danh sách users
   const fetchUsers = () => {
+    setIsLoadingUsers(true);
     fetch(`${API_BASE}/auth/users`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setUsers(data);
       })
-      .catch(err => console.error('Lỗi lấy danh sách user:', err));
+      .catch(err => console.error('Lỗi lấy danh sách user:', err))
+      .finally(() => setIsLoadingUsers(false));
   };
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
   // Xử lý Thêm / Sửa Node
   const handleSaveNode = (e) => {
     e.preventDefault();
+    setIsSubmittingNode(true);
     const endpoint = editingNodeId 
       ? `${API_BASE}/admin/nodes/${editingNodeId}` 
       : `${API_BASE}/admin/nodes`;
@@ -57,7 +59,8 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
           alert(data.message || 'Có lỗi xảy ra');
         }
       })
-      .catch(err => console.error(err));
+      .catch(err => console.error(err))
+      .finally(() => setIsSubmittingNode(false));
   };
 
   const handleEditNodeClick = (node) => {
@@ -68,6 +71,7 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
       description: node.description || '',
       category: node.category || ''
     });
+    // Cuộn lên đầu form trên mobile nếu cần
   };
 
   const handleDeleteNode = (id) => {
@@ -83,12 +87,14 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
         } else {
           alert(data.message || 'Lỗi khi xóa node');
         }
-      });
+      })
+      .catch(err => console.error(err));
   };
 
-  // Xử lý Tài khoản (Leader chỉ cấp tài khoản USER)
+  // Xử lý chỉ tạo tài khoản USER
   const handleCreateUser = (e) => {
     e.preventDefault();
+    setIsCreatingUser(true);
     fetch(`${API_BASE}/auth/create-leader`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -105,27 +111,9 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
         } else {
           alert(data.message || 'Lỗi cấp tài khoản');
         }
-      });
-  };
-
-  const handleUpdateUser = (e) => {
-    e.preventDefault();
-    fetch(`${API_BASE}/auth/users/${editingUser._id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: editUsername, password: editPassword, role: 'USER' }),
-      credentials: 'include'
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert('Cập nhật tài khoản thành công!');
-          setEditingUser(null);
-          fetchUsers();
-        } else {
-          alert(data.message);
-        }
-      });
+      })
+      .catch(err => console.error(err))
+      .finally(() => setIsCreatingUser(false));
   };
 
   // Tính toán thống kê
@@ -159,7 +147,7 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
               activeTab === 'users' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            👥 Cấp & Quản lý User
+            👥 Cấp & Xem tài khoản User
           </button>
         </div>
 
@@ -279,9 +267,10 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
               <div className="flex space-x-2">
                 <button
                   type="submit"
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
+                  disabled={isSubmittingNode}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50"
                 >
-                  {editingNodeId ? 'Lưu thay đổi' : 'Thêm Node'}
+                  {isSubmittingNode ? 'Đang xử lý...' : (editingNodeId ? 'Lưu thay đổi' : 'Thêm Node')}
                 </button>
                 {editingNodeId && (
                   <button
@@ -341,10 +330,10 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
           </div>
         )}
 
-        {/* TAB 3: CẤP & QUẢN LÝ USER */}
+        {/* TAB 3: CẤP & XEM TÀI KHOẢN USER */}
         {activeTab === 'users' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-800">Cấp & Quản lý tài khoản User</h2>
+            <h2 className="text-xl font-bold text-gray-800">Cấp & Xem tài khoản User</h2>
             
             <form onSubmit={handleCreateUser} className="bg-gray-50 p-4 rounded-xl border space-y-4">
               <h3 className="text-sm font-bold text-gray-700">➕ Cấp tài khoản User mới</h3>
@@ -372,103 +361,69 @@ export default function LeaderView({ nodes, refreshNodes, handleLogout, API_BASE
                   />
                 </div>
               </div>
+              <div className="text-xs text-gray-500 italic">
+                * Tài khoản được tạo sẽ tự động mang quyền hạn cấp độ <b>USER</b>.
+              </div>
               <button
                 type="submit"
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
+                disabled={isCreatingUser}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50"
               >
-                Tạo tài khoản User
+                {isCreatingUser ? 'Đang tạo...' : 'Tạo tài khoản User'}
               </button>
             </form>
 
             <div>
-              <h3 className="text-md font-semibold text-gray-700 mb-3">Danh sách tài khoản trong hệ thống</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-md font-semibold text-gray-700">Danh sách tài khoản trong hệ thống</h3>
+                <button 
+                  onClick={fetchUsers} 
+                  className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
+                >
+                  🔄 Làm mới
+                </button>
+              </div>
+
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b text-xs text-gray-500 bg-gray-50">
-                      <th className="p-3">Tên tài khoản</th>
-                      <th className="p-3">Vai trò</th>
-                      <th className="p-3 text-right">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y text-sm">
-                    {users.map((u) => (
-                      <tr key={u._id} className="hover:bg-gray-50">
-                        <td className="p-3 font-medium text-gray-800">{u.username}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                            u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                            u.role === 'LEADER' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right space-x-2">
-                          {u.role === 'USER' && (
-                            <button
-                              onClick={() => { setEditingUser(u); setEditUsername(u.username); setEditPassword(''); }}
-                              className="text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded text-xs font-medium hover:bg-indigo-100"
-                            >
-                              Sửa
-                            </button>
-                          )}
-                        </td>
+                {isLoadingUsers ? (
+                  <div className="text-center py-8 text-sm text-gray-500">Đang tải danh sách người dùng...</div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b text-xs text-gray-500 bg-gray-50">
+                        <th className="p-3">Tên tài khoản</th>
+                        <th className="p-3">Vai trò</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y text-sm">
+                      {users.length === 0 ? (
+                        <tr>
+                          <td colSpan="2" className="p-4 text-center text-gray-500 italic">Chưa có tài khoản nào.</td>
+                        </tr>
+                      ) : (
+                        users.map((u) => (
+                          <tr key={u._id || u.id} className="hover:bg-gray-50">
+                            <td className="p-3 font-medium text-gray-800">{u.username}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                                u.role === 'LEADER' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {u.role}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>
         )}
 
       </div>
-
-      {/* MODAL CHỈNH SỬA USER */}
-      {editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-lg">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Chỉnh sửa tài khoản: {editingUser.username}</h3>
-            <form onSubmit={handleUpdateUser} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên tài khoản mới</label>
-                <input
-                  type="text"
-                  value={editUsername}
-                  onChange={(e) => setEditUsername(e.target.value)}
-                  required
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới (Bỏ trống nếu không đổi)</label>
-                <input
-                  type="password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Nhập pass mới..."
-                />
-              </div>
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
-                >
-                  Lưu thay đổi
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
