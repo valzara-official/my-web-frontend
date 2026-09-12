@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Tự động lấy URL từ file .env hoặc Vercel, nếu không có sẽ lấy fallback Render
-const API_BASE = (import.meta.env?.VITE_API_URL || process.env.REACT_APP_API_URL || 'https://my-web-backend-i49k.onrender.com') + '/api';
+const API_BASE = import.meta.env?.VITE_API_URL;
 
 export default function App() {
   const [view, setView] = useState('INDEX'); // 'INDEX' | 'LOGIN' | 'ADMIN'
