@@ -9,36 +9,44 @@ const getApiBase = () => {
 const API_BASE = getApiBase();
 
 export default function App() {
-  // 1. Lưu và khôi phục trạng thái view hiện tại qua localStorage
   const [view, setView] = useState(() => localStorage.getItem('current_view') || 'INDEX');
   const [nodes, setNodes] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Hàm chuyển view có đồng bộ vào localStorage
   const changeView = (newView) => {
     setView(newView);
     localStorage.setItem('current_view', newView);
   };
 
-  // 2. Kiểm tra phiên đăng nhập khi F5 hoặc tải trang
+  // 1. Kiểm tra phiên đăng nhập & xử lý điều hướng chính xác khi F5
   useEffect(() => {
+    const savedView = localStorage.getItem('current_view') || 'INDEX';
+
     fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           setIsLoggedIn(true);
+          if (savedView === 'ADMIN' || savedView === 'LOGIN') {
+            changeView('ADMIN');
+          }
         } else {
           setIsLoggedIn(false);
-          // Nếu phiên hết hạn mà đang ở trang ADMIN thì tự chuyển về LOGIN
-          if (view === 'ADMIN') {
+          // Nếu đang muốn vào trang ADMIN mà chưa có cookie hợp lệ -> Bắt buộc về LOGIN
+          if (savedView === 'ADMIN') {
             changeView('LOGIN');
           }
         }
       })
-      .catch(() => setIsLoggedIn(false));
+      .catch(() => {
+        setIsLoggedIn(false);
+        if (savedView === 'ADMIN') {
+          changeView('LOGIN');
+        }
+      });
   }, []);
 
-  // 3. Tải dữ liệu theo View
+  // 2. Tải dữ liệu theo View
   useEffect(() => {
     if (view === 'INDEX') {
       fetch(`${API_BASE}/public/nodes`)
@@ -120,7 +128,7 @@ export default function App() {
   );
 }
 
-// 1. TRANG INDEX
+// TRANG INDEX
 function IndexView({ nodes, onNodeClick }) {
   return (
     <div>
@@ -156,7 +164,7 @@ function IndexView({ nodes, onNodeClick }) {
   );
 }
 
-// 2. TRANG ĐĂNG NHẬP ADMIN
+// TRANG ĐĂNG NHẬP ADMIN
 function LoginView({ changeView, setIsLoggedIn }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -218,7 +226,7 @@ function LoginView({ changeView, setIsLoggedIn }) {
   );
 }
 
-// 3. TRANG ADMIN
+// TRANG ADMIN
 function AdminView({ nodes, refreshNodes, changeView, setIsLoggedIn }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -286,7 +294,6 @@ function AdminView({ nodes, refreshNodes, changeView, setIsLoggedIn }) {
         </button>
       </div>
 
-      {/* Form Tạo Nhánh Mới */}
       <div className="bg-white p-6 rounded-xl shadow-sm border mb-8">
         <h3 className="text-lg font-bold mb-4 text-gray-700">Tạo Nhánh Điều Hướng Mới</h3>
         <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -337,7 +344,6 @@ function AdminView({ nodes, refreshNodes, changeView, setIsLoggedIn }) {
         </form>
       </div>
 
-      {/* Danh sách các nhánh đã tạo */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-100 text-xs font-semibold text-gray-600 uppercase">
