@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
-// Tự động lấy URL từ file .env hoặc Vercel, nếu không có sẽ lấy fallback Render
-const API_BASE = import.meta.env?.VITE_API_URL;
+// Tự động lấy URL từ file .env hoặc Vercel
+const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function App() {
   const [view, setView] = useState('INDEX'); // 'INDEX' | 'LOGIN' | 'ADMIN'
-  const [token, setToken] = useState(localStorage.getItem('admin_token') || '');
   const [nodes, setNodes] = useState([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     if (view === 'INDEX') {
@@ -14,23 +14,34 @@ export default function App() {
         .then(res => res.json())
         .then(data => setNodes(data))
         .catch(err => console.error('Lỗi kết nối API:', err));
-    } else if (view === 'ADMIN' && token) {
+    } else if (view === 'ADMIN') {
       fetchAdminNodes();
     }
-  }, [view, token]);
+  }, [view]);
 
   const fetchAdminNodes = () => {
     fetch(`${API_BASE}/admin/nodes`, {
-      headers: { Authorization: `Bearer ${token}` }
+      credentials: 'include' // Tự động gửi HttpOnly Cookie
     })
-      .then(res => res.json())
-      .then(data => setNodes(data))
+      .then(res => {
+        if (res.status === 401 || res.status === 403) {
+          setIsLoggedIn(false);
+          setView('LOGIN');
+          throw new Error('Phiên đăng nhập hết hạn');
+        }
+        return res.json();
+      })
+      .then(data => {
+        setNodes(data);
+        setIsLoggedIn(true);
+      })
       .catch(err => console.error(err));
   };
 
   const handleNodeClick = (node) => {
-    fetch(`${API_BASE}/public/nodes/${node.id}/click`, { method: 'POST' });
-    window.open(node.target_url, '_blank');
+    const nodeId = node.id || node._id;
+    fetch(`${API_BASE}/public/nodes/${nodeId}/click`, { method: 'POST' });
+    window.open(node.target_url || node.url, '_blank');
   };
 
   return (
@@ -46,10 +57,10 @@ export default function App() {
         <div>
           {view === 'INDEX' && (
             <button
-              onClick={() => setView(token ? 'ADMIN' : 'LOGIN')}
+              onClick={() => setView(isLoggedIn ? 'ADMIN' : 'LOGIN')}
               className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
             >
-              {token ? 'Trang Admin' : 'Đăng nhập Admin'}
+              {isLoggedIn ? 'Trang Admin' : 'Đăng nhập Admin'}
             </button>
           )}
           {view !== 'INDEX' && (
@@ -66,14 +77,13 @@ export default function App() {
       {/* Main Content */}
       <div className="max-w-5xl mx-auto p-6">
         {view === 'INDEX' && <IndexView nodes={nodes} onNodeClick={handleNodeClick} />}
-        {view === 'LOGIN' && <LoginView setToken={setToken} setView={setView} />}
+        {view === 'LOGIN' && <LoginView setView={setView} setIsLoggedIn={setIsLoggedIn} />}
         {view === 'ADMIN' && (
           <AdminView 
-            token={token} 
             nodes={nodes} 
             refreshNodes={fetchAdminNodes} 
-            setToken={setToken} 
             setView={setView} 
+            setIsLoggedIn={setIsLoggedIn}
           />
         )}
       </div>
@@ -93,12 +103,12 @@ function IndexView({ nodes, onNodeClick }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         {nodes.map((node) => (
           <div
-            key={node.id}
+            key={node.id || node._id}
             onClick={() => onNodeClick(node)}
             className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-500 cursor-pointer transition flex items-start space-x-4 group"
           >
             <div className="text-4xl p-3 bg-blue-50 rounded-lg group-hover:scale-110 transition-transform">
-              {node.icon}
+              {node.icon || '🌐'}
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
@@ -107,7 +117,7 @@ function IndexView({ nodes, onNodeClick }) {
               <p className="text-gray-600 text-sm mt-1">{node.description}</p>
               <div className="mt-3 flex justify-between items-center text-xs text-gray-400">
                 <span className="text-blue-500 font-medium">Truy cập ngay &rarr;</span>
-                <span>{node.click_count} lượt click</span>
+                <span>{node.click_count || node.clicks || 0} lượt click</span>
               </div>
             </div>
           </div>
@@ -117,8 +127,8 @@ function IndexView({ nodes, onNodeClick }) {
   );
 }
 
-// 2. TRANG ĐĂNG NHẬP ADMIN
-function LoginView({ setToken, setView }) {
+// 2. TRANG ĐĂNG NHẬP ADMIN (HttpOnly Cookie)
+function LoginView({ setView, setIsLoggedIn }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -127,18 +137,19 @@ function LoginView({ setToken, setView }) {
     fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password }),
+      credentials: 'include' // Nhận Set-Cookie từ Backend
     })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          localStorage.setItem('admin_token', data.token);
-          setToken(data.token);
+          setIsLoggedIn(true);
           setView('ADMIN');
         } else {
           alert(data.message);
         }
-      });
+      })
+      .catch(err => console.error('Lỗi đăng nhập:', err));
   };
 
   return (
@@ -163,7 +174,7 @@ function LoginView({ setToken, setView }) {
             value={password}
             onChange={e => setPassword(e.target.value)}
             className="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="admin123"
+            placeholder="••••••••"
             required
           />
         </div>
@@ -178,13 +189,13 @@ function LoginView({ setToken, setView }) {
   );
 }
 
-// 3. TRANG ADMIN (Quản lý các Nhánh)
-function AdminView({ token, nodes, refreshNodes, setToken, setView }) {
+// 3. TRANG ADMIN (Gửi Cookie xác thực)
+function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     icon: '🌐',
-    target_url: '',
+    url: '',
     status: 'ACTIVE'
   });
 
@@ -192,14 +203,12 @@ function AdminView({ token, nodes, refreshNodes, setToken, setView }) {
     e.preventDefault();
     fetch(`${API_BASE}/admin/nodes`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+      credentials: 'include' // Gửi HttpOnly Cookie xác thực
     }).then(() => {
       refreshNodes();
-      setFormData({ title: '', description: '', icon: '🌐', target_url: '', status: 'ACTIVE' });
+      setFormData({ title: '', description: '', icon: '🌐', url: '', status: 'ACTIVE' });
     });
   };
 
@@ -207,15 +216,19 @@ function AdminView({ token, nodes, refreshNodes, setToken, setView }) {
     if (window.confirm('Bạn có chắc muốn xóa nhánh này?')) {
       fetch(`${API_BASE}/admin/nodes/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'include' // Gửi HttpOnly Cookie xác thực
       }).then(() => refreshNodes());
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    setToken('');
-    setView('INDEX');
+    fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include' // Gửi request xóa Cookie trên Server
+    }).then(() => {
+      setIsLoggedIn(false);
+      setView('INDEX');
+    });
   };
 
   return (
@@ -245,8 +258,8 @@ function AdminView({ token, nodes, refreshNodes, setToken, setView }) {
           <input
             type="url"
             placeholder="URL Đích (https://example.com)"
-            value={formData.target_url}
-            onChange={e => setFormData({ ...formData, target_url: e.target.value })}
+            value={formData.url}
+            onChange={e => setFormData({ ...formData, url: e.target.value })}
             className="p-2 border rounded-md outline-none focus:border-blue-500"
             required
           />
@@ -296,21 +309,21 @@ function AdminView({ token, nodes, refreshNodes, setToken, setView }) {
           </thead>
           <tbody className="divide-y text-sm">
             {nodes.map(node => (
-              <tr key={node.id} className="hover:bg-gray-50">
-                <td className="p-4 text-2xl">{node.icon}</td>
+              <tr key={node.id || node._id} className="hover:bg-gray-50">
+                <td className="p-4 text-2xl">{node.icon || '🌐'}</td>
                 <td className="p-4 font-semibold">{node.title}</td>
-                <td className="p-4 text-blue-600 truncate max-w-xs">{node.target_url}</td>
-                <td className="p-4 font-mono">{node.click_count}</td>
+                <td className="p-4 text-blue-600 truncate max-w-xs">{node.target_url || node.url}</td>
+                <td className="p-4 font-mono">{node.click_count || node.clicks || 0}</td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     node.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {node.status}
+                    {node.status || 'ACTIVE'}
                   </span>
                 </td>
                 <td className="p-4">
                   <button
-                    onClick={() => handleDelete(node.id)}
+                    onClick={() => handleDelete(node.id || node._id)}
                     className="text-red-600 hover:underline font-medium"
                   >
                     Xóa
