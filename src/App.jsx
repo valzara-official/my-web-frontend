@@ -9,24 +9,36 @@ const getApiBase = () => {
 const API_BASE = getApiBase();
 
 export default function App() {
-  const [view, setView] = useState('INDEX'); // 'INDEX' | 'LOGIN' | 'ADMIN'
+  // 1. Lưu và khôi phục trạng thái view hiện tại qua localStorage
+  const [view, setView] = useState(() => localStorage.getItem('current_view') || 'INDEX');
   const [nodes, setNodes] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Auto Check phiên đăng nhập Admin khi tải trang / F5
+  // Hàm chuyển view có đồng bộ vào localStorage
+  const changeView = (newView) => {
+    setView(newView);
+    localStorage.setItem('current_view', newView);
+  };
+
+  // 2. Kiểm tra phiên đăng nhập khi F5 hoặc tải trang
   useEffect(() => {
-    fetch(`${API_BASE}/admin/nodes`, { credentials: 'include' })
-      .then(res => {
-        if (res.ok) {
+    fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
           setIsLoggedIn(true);
         } else {
           setIsLoggedIn(false);
+          // Nếu phiên hết hạn mà đang ở trang ADMIN thì tự chuyển về LOGIN
+          if (view === 'ADMIN') {
+            changeView('LOGIN');
+          }
         }
       })
       .catch(() => setIsLoggedIn(false));
   }, []);
 
-  // Tải dữ liệu theo View
+  // 3. Tải dữ liệu theo View
   useEffect(() => {
     if (view === 'INDEX') {
       fetch(`${API_BASE}/public/nodes`)
@@ -43,7 +55,7 @@ export default function App() {
       .then(res => {
         if (res.status === 401 || res.status === 403) {
           setIsLoggedIn(false);
-          setView('LOGIN');
+          changeView('LOGIN');
           throw new Error('Phiên đăng nhập hết hạn');
         }
         return res.json();
@@ -67,14 +79,14 @@ export default function App() {
       <nav className="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center">
         <h1 
           className="text-xl font-bold text-blue-600 cursor-pointer"
-          onClick={() => setView('INDEX')}
+          onClick={() => changeView('INDEX')}
         >
           🌐 Navigation Portal
         </h1>
         <div>
           {view === 'INDEX' && (
             <button
-              onClick={() => setView(isLoggedIn ? 'ADMIN' : 'LOGIN')}
+              onClick={() => changeView(isLoggedIn ? 'ADMIN' : 'LOGIN')}
               className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
             >
               {isLoggedIn ? 'Trang Admin' : 'Đăng nhập Admin'}
@@ -82,7 +94,7 @@ export default function App() {
           )}
           {view !== 'INDEX' && (
             <button
-              onClick={() => setView('INDEX')}
+              onClick={() => changeView('INDEX')}
               className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition"
             >
               Về Trang Chủ
@@ -94,12 +106,12 @@ export default function App() {
       {/* Main Content */}
       <div className="max-w-5xl mx-auto p-6">
         {view === 'INDEX' && <IndexView nodes={nodes} onNodeClick={handleNodeClick} />}
-        {view === 'LOGIN' && <LoginView setView={setView} setIsLoggedIn={setIsLoggedIn} />}
+        {view === 'LOGIN' && <LoginView changeView={changeView} setIsLoggedIn={setIsLoggedIn} />}
         {view === 'ADMIN' && (
           <AdminView 
             nodes={nodes} 
             refreshNodes={fetchAdminNodes} 
-            setView={setView} 
+            changeView={changeView} 
             setIsLoggedIn={setIsLoggedIn}
           />
         )}
@@ -145,7 +157,7 @@ function IndexView({ nodes, onNodeClick }) {
 }
 
 // 2. TRANG ĐĂNG NHẬP ADMIN
-function LoginView({ setView, setIsLoggedIn }) {
+function LoginView({ changeView, setIsLoggedIn }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -161,7 +173,7 @@ function LoginView({ setView, setIsLoggedIn }) {
       .then(data => {
         if (data.success) {
           setIsLoggedIn(true);
-          setView('ADMIN');
+          changeView('ADMIN');
         } else {
           alert(data.message || 'Đăng nhập thất bại');
         }
@@ -207,7 +219,7 @@ function LoginView({ setView, setIsLoggedIn }) {
 }
 
 // 3. TRANG ADMIN
-function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
+function AdminView({ nodes, refreshNodes, changeView, setIsLoggedIn }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -242,7 +254,7 @@ function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
 
       if (res.ok) {
         alert("Xóa nhánh thành công!");
-        refreshNodes(); // Gọi lại API lấy danh sách mới nhất
+        refreshNodes();
       } else {
         alert(data.message || "Không thể xóa nhánh!");
       }
@@ -258,7 +270,7 @@ function AdminView({ nodes, refreshNodes, setView, setIsLoggedIn }) {
       credentials: 'include'
     }).then(() => {
       setIsLoggedIn(false);
-      setView('INDEX');
+      changeView('INDEX');
     });
   };
 
