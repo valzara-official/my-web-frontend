@@ -38,7 +38,6 @@ export default function App() {
           setUserRole(role);
           localStorage.setItem('user_role', role);
 
-          // Nếu đang ở trang Auth hoặc lưu các trang hệ thống, tự chuyển về đúng role dashboard
           if (['ADMIN', 'LEADER', 'USER', 'AUTH'].includes(savedView) && savedView !== 'INDEX') {
             changeView(role);
           }
@@ -54,6 +53,26 @@ export default function App() {
         setIsLoggedIn(false);
       });
   }, []);
+
+  // 🌟 VÒNG LẶP HEARTBEAT: Gửi tín hiệu online mỗi 60 giây khi user đã đăng nhập
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    // Gửi ngay 1 lần khi vừa xác thực thành công
+    const sendHeartbeat = () => {
+      fetch(`${API_BASE}/auth/heartbeat`, {
+        method: 'POST',
+        credentials: 'include'
+      }).catch(err => console.error('Heartbeat error:', err));
+    };
+
+    sendHeartbeat();
+
+    // Thiết lập interval chạy định kỳ mỗi 1 phút (60000ms)
+    const interval = setInterval(sendHeartbeat, 60000);
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
 
   // Hàm gọi API lấy danh sách Node cho Admin / Leader
   const fetchDashboardNodes = useCallback(() => {
