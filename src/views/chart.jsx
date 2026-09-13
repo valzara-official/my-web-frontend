@@ -26,44 +26,50 @@ ChartJS.register(
 );
 
 export default function OverviewChart({ nodes = [], users = [] }) {
-  const totalNodes = nodes.length;
-  const totalClicks = nodes.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
-  const totalUsers = users.length;
-  const avgViewTime = nodes.length > 0 ? '1 phút 45 giây' : '0 giây';
+  // 🛡️ Đảm bảo an toàn tuyệt đối, phòng hờ props truyền vào bị undefined
+  const safeNodes = Array.isArray(nodes) ? nodes : [];
+  const safeUsers = Array.isArray(users) ? users : [];
 
-  // 1. Phân tách danh sách User và Leader
-  const standardUsers = users.filter(u => u.role === 'USER');
-  const leaderUsers = users.filter(u => u.role === 'LEADER');
+  const totalNodes = safeNodes.length;
+  const totalClicks = safeNodes.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
+  const totalUsers = safeUsers.length;
+  const avgViewTime = safeNodes.length > 0 ? '1 phút 45 giây' : '0 giây';
+
+  // 1. Phân tách danh sách User và Leader an toàn
+  const standardUsers = safeUsers.filter(u => u && u.role === 'USER');
+  const leaderUsers = safeUsers.filter(u => u && u.role === 'LEADER');
 
   // Biểu đồ cột 1: Lượt click theo Node
   const barChartData = {
-    labels: nodes.map(n => n.title),
+    labels: safeNodes.map(n => n?.title || ''),
     datasets: [
       {
         label: 'Lượt click',
-        data: nodes.map(n => n.clicks || n.click_count || 0),
+        data: safeNodes.map(n => n?.clicks || n?.click_count || 0),
         backgroundColor: 'rgba(79, 70, 229, 0.8)',
         borderRadius: 6,
       },
     ],
   };
 
-  // 2. Biểu đồ cột mới: Thời gian hoạt động của riêng các LEADER (tính bằng phút)
+  // 2. Biểu đồ cột mới: Thời gian hoạt động của riêng các LEADER
   const leaderBarChartData = {
-    labels: leaderUsers.map(l => l.username),
+    labels: leaderUsers.map(l => l?.username || ''),
     datasets: [
       {
         label: 'Thời gian hoạt động (Phút)',
-        data: leaderUsers.map(l => l.totalActiveMinutes || 0),
-        backgroundColor: 'rgba(147, 51, 234, 0.8)', // Tím đặc trưng cho Leader
+        data: leaderUsers.map(l => l?.totalActiveMinutes || 0),
+        backgroundColor: 'rgba(147, 51, 234, 0.8)',
         borderRadius: 6,
       },
     ],
   };
 
-  // Biểu đồ tròn: Phân bổ vai trò User (Tổng quan)
-  const roleCounts = users.reduce((acc, user) => {
-    acc[user.role] = (acc[user.role] || 0) + 1;
+  // Biểu đồ tròn: Phân bổ vai trò User
+  const roleCounts = safeUsers.reduce((acc, user) => {
+    if (user && user.role) {
+      acc[user.role] = (acc[user.role] || 0) + 1;
+    }
     return acc;
   }, {});
 
@@ -107,7 +113,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
         {/* Biểu đồ 1: Lượt click theo Nodes */}
         <div className="bg-white p-5 rounded-xl border shadow-sm">
           <h3 className="text-sm font-bold text-gray-700 mb-4">📊 Lượt click theo liên kết (Nodes)</h3>
-          {nodes.length === 0 ? (
+          {safeNodes.length === 0 ? (
             <p className="text-sm text-gray-400 italic py-10 text-center">Chưa có dữ liệu nodes.</p>
           ) : (
             <div className="h-64 flex items-center justify-center">
