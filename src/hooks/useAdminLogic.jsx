@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export default function useAdminLogic(API_BASE) {
+export default function useAdminLogic(rawApiBase) {
+  // 🛡️ Xử lý an toàn: Nếu lỡ truyền nhầm object, cố gắng lấy thuộc tính URL hoặc gán về string rỗng
+  const API_BASE = typeof rawApiBase === 'object' && rawApiBase !== null
+    ? (rawApiBase.url || rawApiBase.baseURL || '') 
+    : (rawApiBase || '');
+
   const [nodes, setNodes] = useState([]);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({ totalClicks: 0, activeNodes: 0, totalUsers: 0 });
@@ -8,6 +13,7 @@ export default function useAdminLogic(API_BASE) {
 
   // Lấy danh sách Nodes từ API
   const fetchNodes = useCallback(async () => {
+    if (!API_BASE) return;
     try {
       const res = await fetch(`${API_BASE}/nodes`, { credentials: 'include' });
       const data = await res.json();
@@ -24,6 +30,7 @@ export default function useAdminLogic(API_BASE) {
 
   // Lấy danh sách Users từ API (Yêu cầu quyền Admin/Leader)
   const fetchUsers = useCallback(async () => {
+    if (!API_BASE) return;
     try {
       setIsLoading(true);
       const res = await fetch(`${API_BASE}/auth/users`, { credentials: 'include' });
