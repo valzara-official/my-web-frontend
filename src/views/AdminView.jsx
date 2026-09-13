@@ -327,7 +327,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
             {/* BẢNG 1: DANH SÁCH ADMIN */}
             <div className="space-y-3">
               <div 
-                onClick={() => setShowSection(prev => ({ ...prev, admin: !prev.admin }))}
+                onClick={() => setShowSection(prev => ({ ...(prev || {}), admin: !(prev && prev.admin) }))}
                 className="flex items-center justify-between cursor-pointer bg-red-50 p-3 rounded-lg border border-red-100 hover:bg-red-100/60 transition select-none"
               >
                 <h3 className="text-md font-bold text-red-700 flex items-center gap-2 m-0">
@@ -396,7 +396,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
             {/* BẢNG 2: DANH SÁCH LEADER */}
             <div className="space-y-3 pt-2">
               <div 
-                onClick={() => setShowSection(prev => ({ ...prev, leader: !prev.leader }))}
+                onClick={() => setShowSection(prev => ({ ...(prev || {}), leader: !(prev && prev.leader) }))}
                 className="flex items-center justify-between cursor-pointer bg-purple-50 p-3 rounded-lg border border-purple-100 hover:bg-purple-100/60 transition select-none"
               >
                 <h3 className="text-md font-bold text-purple-700 flex items-center gap-2 m-0">
@@ -465,7 +465,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
             {/* BẢNG 3: DANH SÁCH USER */}
             <div className="space-y-3 pt-2">
               <div 
-                onClick={() => setShowSection(prev => ({ ...prev, user: !prev.user }))}
+                onClick={() => setShowSection(prev => ({ ...(prev || {}), user: !(prev && prev.user) }))}
                 className="flex items-center justify-between cursor-pointer bg-blue-50 p-3 rounded-lg border border-blue-100 hover:bg-blue-100/60 transition select-none"
               >
                 <h3 className="text-md font-bold text-blue-700 flex items-center gap-2 m-0">
