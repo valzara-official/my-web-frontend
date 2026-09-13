@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export function useAdminLogic(API_BASE) {
+export default function useAdminLogic(API_BASE) {
   const [nodes, setNodes] = useState([]);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({ totalClicks: 0, activeNodes: 0, totalUsers: 0 });
@@ -13,7 +13,6 @@ export function useAdminLogic(API_BASE) {
       const data = await res.json();
       if (Array.isArray(data)) {
         setNodes(data);
-        // Cập nhật thống kê nhanh
         const totalClicks = data.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
         const activeNodes = data.filter(n => (n.status ? n.status === 'ACTIVE' : true)).length;
         setStats(prev => ({ ...prev, totalClicks, activeNodes }));
@@ -40,13 +39,11 @@ export function useAdminLogic(API_BASE) {
     }
   }, [API_BASE]);
 
-  // Khởi chạy đồng bộ ban đầu
   useEffect(() => {
     fetchNodes();
     fetchUsers();
   }, [fetchNodes, fetchUsers]);
 
-  // Thêm hoặc Cập nhật Node
   const saveNode = async (nodeForm, editingNodeId) => {
     const endpoint = editingNodeId 
       ? `${API_BASE}/admin/nodes/${editingNodeId}` 
@@ -67,7 +64,6 @@ export function useAdminLogic(API_BASE) {
     return { success: false, message: data.message || 'Có lỗi xảy ra' };
   };
 
-  // Xóa Node
   const removeNode = async (id) => {
     const res = await fetch(`${API_BASE}/admin/nodes/${id}`, {
       method: 'DELETE',
@@ -81,7 +77,6 @@ export function useAdminLogic(API_BASE) {
     return { success: false, message: data.message || 'Lỗi khi xóa node' };
   };
 
-  // Tạo tài khoản User mới
   const createUser = async (username, password) => {
     const res = await fetch(`${API_BASE}/auth/create-leader`, {
       method: 'POST',
