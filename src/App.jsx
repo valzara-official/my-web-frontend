@@ -1,10 +1,9 @@
-// Đường dẫn file: src/App.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import IndexView from './components/IndexView';
-import AuthView from './components/AuthView';
-import AdminView from './components/AdminView';
-import LeaderView from './components/LeaderView';
-import UserView from './components/UserView';
+import IndexView from './src/components/IndexView';
+import AuthView from './src/components/AuthView';
+import AdminView from './src/components/AdminView';
+import LeaderView from './src/components/LeaderView';
+import UserView from './src/components/UserView';
 
 const getApiBase = () => {
   const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
@@ -23,9 +22,9 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('is_logged_in') === 'true';
   });
-  
+
   const [userRole, setUserRole] = useState(() => localStorage.getItem('user_role') || 'USER');
-  
+
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('current_user');
     try {
@@ -86,7 +85,6 @@ export default function App() {
     fetch(endpoint, { credentials: 'include' })
       .then(res => {
         if (res.status === 401 || res.status === 403) {
-          // Chỉ khi gọi các API quản trị cốt lõi mà bị từ chối quyền thực sự thì mới xử lý đăng xuất
           return null;
         }
         return res.json();
@@ -144,7 +142,7 @@ export default function App() {
         localStorage.removeItem('user_role');
         localStorage.removeItem('current_user');
         localStorage.removeItem('current_view');
-        
+
         changeView('INDEX');
       });
   };
