@@ -28,10 +28,16 @@ export default function AuthView({ API_BASE, changeView, setUserRole, setIsLogge
           } else {
             const userRole = data.user?.role || 'USER';
 
-            // Cập nhật State và LocalStorage
+            // === CẬP NHẬT ĐOẠN LƯU LOCALSTORAGE ĐẦY ĐỦ Ở ĐÂY ===
+            localStorage.setItem('is_logged_in', 'true');
+            localStorage.setItem('user_role', userRole);
+            if (data.user) {
+              localStorage.setItem('current_user', JSON.stringify(data.user));
+            }
+
+            // Cập nhật State
             setIsLoggedIn(true);
             setUserRole(userRole);
-            localStorage.setItem('user_role', userRole);
 
             // Chờ 100ms để đảm bảo trình duyệt lưu HTTP-Only Cookie trước khi gọi API Admin
             setTimeout(() => {
@@ -101,7 +107,7 @@ export default function AuthView({ API_BASE, changeView, setUserRole, setIsLogge
           </span>
         ) : (
           <span>
-            Chưa có tài khoản?{ ' '}
+            Chưa có tài khoản?{' '}
             <button
               type="button"
               onClick={() => setIsRegisterMode(true)}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import IndexView from './components/IndexView';
-import AuthView from './components/AuthView';
-import AdminView from './components/AdminView';
-import LeaderView from './components/LeaderView';
-import UserView from './components/UserView';
+import IndexView from './src/components/IndexView';
+import AuthView from './src/components/AuthView'; // Vẫn giữ component này để dùng làm nội dung bên trong Modal
+import AdminView from './src/components/AdminView';
+import LeaderView from './src/components/LeaderView';
+import UserView from './src/components/UserView';
 
 const getApiBase = () => {
   const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
@@ -15,7 +15,11 @@ const API_BASE = getApiBase();
 
 export default function App() {
   const [view, setView] = useState(() => localStorage.getItem('current_view') || 'INDEX');
-  const [authMode, setAuthMode] = useState('LOGIN');
+  
+  // 🌟 Thay vì chuyển view sang 'AUTH', ta dùng Modal state (true/false) để bật/tắt bảng thông báo nổi
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('LOGIN'); // 'LOGIN' hoặc 'REGISTER'
+
   const [nodes, setNodes] = useState([]);
 
   // Đọc trạng thái đăng nhập từ localStorage
@@ -34,23 +38,12 @@ export default function App() {
     }
   });
 
-  // 🌟 Hàm chuyển view có kèm đồng bộ lại state từ localStorage để không bao giờ bị lệch trạng thái
   const changeView = (newView) => {
-    const logged = localStorage.getItem('is_logged_in') === 'true';
-    const role = localStorage.getItem('user_role') || 'USER';
-    const savedUser = localStorage.getItem('current_user');
-
-    setIsLoggedIn(logged);
-    setUserRole(role);
-    if (savedUser) {
-      try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
-    }
-
     setView(newView);
     localStorage.setItem('current_view', newView);
   };
 
-  // Khi F5 hoặc load lại trang
+  // Khi F5 hoặc load lại trang: Đồng bộ từ localStorage
   useEffect(() => {
     const logged = localStorage.getItem('is_logged_in') === 'true';
     const role = localStorage.getItem('user_role') || 'USER';
@@ -89,31 +82,22 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isLoggedIn]);
 
-  // Hàm gọi API lấy danh sách Node cho Admin / Leader
+  // Hàm gọi API lấy danh sách Node
   const fetchDashboardNodes = useCallback(() => {
     const endpoint = userRole === 'ADMIN' ? `${API_BASE}/admin/nodes` : `${API_BASE}/public/nodes`;
 
     fetch(endpoint, { credentials: 'include' })
       .then(res => {
-        if (res.status === 401 || res.status === 403) {
-          return null;
-        }
+        if (res.status === 401 || res.status === 403) return null;
         return res.json();
       })
       .then(data => {
-        if (Array.isArray(data)) {
-          setNodes(data);
-        } else {
-          setNodes([]);
-        }
+        if (Array.isArray(data)) setNodes(data);
+        else setNodes([]);
       })
-      .catch(err => {
-        console.error('Lỗi lấy danh sách nodes quản trị:', err);
-        setNodes([]);
-      });
+      .catch(() => setNodes([]));
   }, [userRole]);
 
-  // Tải dữ liệu các nhánh tự động dựa theo View hiện tại
   useEffect(() => {
     if (view === 'INDEX' || view === 'USER') {
       fetch(`${API_BASE}/public/nodes`, { credentials: 'include' })
@@ -122,10 +106,7 @@ export default function App() {
           if (Array.isArray(data)) setNodes(data);
           else setNodes([]);
         })
-        .catch(err => {
-          console.error(err);
-          setNodes([]);
-        });
+        .catch(() => setNodes([]));
     } else if (view === 'ADMIN' || view === 'LEADER') {
       fetchDashboardNodes();
     }
@@ -133,15 +114,14 @@ export default function App() {
 
   const handleNodeClick = (node) => {
     const nodeId = node._id || node.id;
-    fetch(`${API_BASE}/public/nodes/${nodeId}/click`, { method: 'POST' })
-      .catch(err => console.error('Lỗi tăng lượt click:', err));
+    fetch(`${API_BASE}/public/nodes/${nodeId}/click`, { method: 'POST' }).catch(() => {});
     window.open(node.target_url || node.url, '_blank');
   };
 
   // Hàm Đăng xuất
   const handleLogout = () => {
     fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
-      .catch(err => console.error('Lỗi đăng xuất:', err))
+      .catch(() => {})
       .finally(() => {
         setIsLoggedIn(false);
         setCurrentUser(null);
@@ -157,12 +137,11 @@ export default function App() {
       });
   };
 
-  // 🌟 Kiểm tra trạng thái thực tế từ localStorage để render chính xác trên Navbar
   const isUserAuthenticated = isLoggedIn || localStorage.getItem('is_logged_in') === 'true';
   const activeRole = userRole || localStorage.getItem('user_role') || 'USER';
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
+    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans relative">
       {/* Navigation Header */}
       <nav className="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center">
         <h1
@@ -175,14 +154,15 @@ export default function App() {
         <div className="flex space-x-3 items-center">
           {view === 'INDEX' && !isUserAuthenticated && (
             <>
+              {/* Bấm nút này sẽ bật Modal nổi lên ngay tại trang hiện tại, KHÔNG chuyển trang */}
               <button
-                onClick={() => { setAuthMode('REGISTER'); changeView('AUTH'); }}
+                onClick={() => { setAuthMode('REGISTER'); setIsAuthModalOpen(true); }}
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
               >
                 Tạo tài khoản
               </button>
               <button
-                onClick={() => { setAuthMode('LOGIN'); changeView('AUTH'); }}
+                onClick={() => { setAuthMode('LOGIN'); setIsAuthModalOpen(true); }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
               >
                 Đăng nhập
@@ -191,15 +171,25 @@ export default function App() {
           )}
 
           {isUserAuthenticated && view === 'INDEX' && (
-            <button
-              onClick={() => changeView(activeRole)}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
-            >
-              Vào trang quản trị ({activeRole})
-            </button>
+            <div className="flex items-center gap-3">
+              {currentUser && (
+                <span className="text-sm font-semibold text-gray-700">Xin chào, {currentUser.username}</span>
+              )}
+              <button
+                onClick={() => changeView(activeRole)}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
+              >
+                Vào trang quản trị ({activeRole})
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
+              >
+                Đăng xuất
+              </button>
+            </div>
           )}
 
-          {/* HIỂN THỊ TÊN TÀI KHOẢN CẠNH NÚT VỀ TRANG CHỦ KHI Ở CÁC TRANG KHÁC INDEX */}
           {view !== 'INDEX' && (
             <div className="flex items-center gap-3">
               {currentUser && (
@@ -224,15 +214,6 @@ export default function App() {
       {/* Main Content View Switcher */}
       <div className="max-w-5xl mx-auto p-6">
         {view === 'INDEX' && <IndexView nodes={nodes} onNodeClick={handleNodeClick} />}
-        {view === 'AUTH' && (
-          <AuthView
-            API_BASE={API_BASE}
-            changeView={changeView}
-            setUserRole={setUserRole}
-            setIsLoggedIn={setIsLoggedIn}
-            initialAuthMode={authMode}
-          />
-        )}
         {view === 'ADMIN' && (
           <AdminView
             nodes={nodes}
@@ -257,6 +238,36 @@ export default function App() {
           />
         )}
       </div>
+
+      {/* 🌟 MODAL ĐĂNG NHẬP / ĐĂNG KÝ NỔI (POPUP) */}
+      {isAuthModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-fadeIn">
+            {/* Nút đóng modal (X) */}
+            <button
+              onClick={() => setIsAuthModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition"
+            >
+              &times;
+            </button>
+
+            {/* Form nội dung đăng nhập/đăng ký */}
+            <div className="p-6">
+              <AuthView
+                API_BASE={API_BASE}
+                changeView={(newView) => {
+                  // Khi đăng nhập thành công từ modal, tự động lưu state và đóng modal lại ở nguyên trang
+                  setIsAuthModalOpen(false);
+                  if (newView !== 'AUTH') changeView(newView);
+                }}
+                setUserRole={setUserRole}
+                setIsLoggedIn={setIsLoggedIn}
+                initialAuthMode={authMode}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
