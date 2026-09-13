@@ -18,15 +18,21 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
   // State cho tìm kiếm
   const [searchTerm, setSearchTerm] = useState('');
 
-  // State cho form thêm thành viên mới
+  // State cho Modal Thêm / Sửa thành viên
+  const [showModal, setShowModal] = useState(false);
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+
   const [userForm, setUserForm] = useState({
     username: '',
     password: '',
     role: 'USER',
     email: '',
-    phone: ''
+    phone: '',
+    address: '',
+    gender: 'Khác',
+    note: ''
   });
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
 
   // Lấy danh sách users thật từ DB
   const fetchUsers = () => {
@@ -86,57 +92,97 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
       .then(data => { if (data.success) refreshNodes(); });
   };
 
-  // Xử lý thêm thành viên mới
-  const handleCreateUser = (e) => {
+  // Mở modal Thêm mới
+  const handleOpenAddModal = () => {
+    setIsEditingUser(false);
+    setSelectedUserId(null);
+    setUserForm({
+      username: '',
+      password: '',
+      role: 'USER',
+      email: '',
+      phone: '',
+      address: '',
+      gender: 'Khác',
+      note: ''
+    });
+    setShowModal(true);
+  };
+
+  // Mở modal Chỉnh sửa thông tin thành viên
+  const handleOpenEditModal = (u) => {
+    setIsEditingUser(true);
+    setSelectedUserId(u._id);
+    setUserForm({
+      username: u.username || '',
+      password: '', // Để trống nếu không muốn đổi mật khẩu
+      role: u.role || 'USER',
+      email: u.email || '',
+      phone: u.phone || '',
+      address: u.address || '',
+      gender: u.gender || 'Khác',
+      note: u.note || ''
+    });
+    setShowModal(true);
+  };
+
+  // Xử lý Lưu Thêm hoặc Sửa thành viên
+  const handleSaveUser = (e) => {
     e.preventDefault();
-    fetch(`${API_BASE}/auth/register`, { // Hoặc endpoint đăng ký/tạo user tương ứng của bạn
-      method: 'POST',
+    const endpoint = isEditingUser 
+      ? `${API_BASE}/admin/users/${selectedUserId}` 
+      : `${API_BASE}/auth/register`; // Hoặc endpoint tạo user phù hợp backend của bạn
+    const method = isEditingUser ? 'PUT' : 'POST';
+
+    fetch(endpoint, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userForm),
       credentials: 'include'
     })
       .then(res => res.json())
       .then(data => {
-        if (data.success || data.userId || data._id) {
-          alert('Thêm thành viên thành công!');
-          setUserForm({ username: '', password: '', role: 'USER', email: '', phone: '' });
-          setShowAddUserModal(false);
+        if (data.success || data.userId || data._id || data.modifiedCount > 0) {
+          alert(isEditingUser ? 'Cập nhật thành viên thành công!' : 'Thêm thành viên thành công!');
+          setShowModal(false);
           fetchUsers();
         } else {
-          alert(data.message || 'Không thể tạo thành viên.');
+          alert(data.message || 'Thực hiện không thành công.');
         }
       })
       .catch(err => {
-        console.error('Lỗi tạo user:', err);
+        console.error('Lỗi thao tác user:', err);
         alert('Có lỗi xảy ra khi kết nối đến máy chủ.');
       });
   };
 
   const totalClicks = nodes.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
 
-  // Hàm tạo mã định danh tùy chỉnh từ ID hoặc Index (VD: L000001, U000001)
-  const formatMemberCode = (role, index, id) => {
+  // Tạo mã định danh chuẩn
+  const formatMemberCode = (role, index) => {
     const prefix = (role || '').toUpperCase() === 'LEADER' ? 'L' : 'U';
-    // Nếu có ID mongoDB, lấy 6 ký tự cuối hoặc dùng index + 1
-    const numericPart = String(index + 1).padStart(6, '0');
-    return `${prefix}${numericPart}`;
+    return `${prefix}${String(index + 1).padStart(6, '0')}`;
   };
 
-  // Lọc danh sách theo từ khóa tìm kiếm (Tên, Mã, Email, SĐT)
+  // Lọc dữ liệu theo từ khóa tìm kiếm
   const filteredUsers = users.filter(user => {
     const role = (user.role || '').toUpperCase();
-    if (role !== 'USER' && role !== 'LEADER') return false; // Chỉ lấy User và Leader
+    if (role !== 'USER' && role !== 'LEADER') return false;
 
     const search = searchTerm.toLowerCase();
     const username = (user.username || '').toLowerCase();
     const email = (user.email || '').toLowerCase();
     const phone = (user.phone || '').toLowerCase();
-    const code = (user.code || '').toLowerCase();
+    const address = (user.address || '').toLowerCase();
+    const note = (user.note || '').toLowerCase();
 
-    return username.includes(search) || email.includes(search) || phone.includes(search) || code.includes(search);
+    return username.includes(search) || 
+           email.includes(search) || 
+           phone.includes(search) || 
+           address.includes(search) || 
+           note.includes(search);
   });
 
-  // Tách ra 2 danh sách riêng biệt
   const leaderList = filteredUsers.filter(u => (u.role || '').toUpperCase() === 'LEADER');
   const userList = filteredUsers.filter(u => (u.role || '').toUpperCase() === 'USER');
 
@@ -258,16 +304,16 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
           </div>
         )}
 
-        {/* 👇 TAB QUẢN LÝ USER & LEADER (TÁCH 2 BẢNG + TÌM KIẾM + THÊM THÀNH VIÊN) */}
+        {/* TAB QUẢN LÝ USER & LEADER */}
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">👥 Quản lý Thành viên</h2>
-                <p className="text-sm text-gray-500">Phân loại, tìm kiếm và quản lý chi tiết thông tin tài khoản Leader và User.</p>
+                <p className="text-sm text-gray-500">Phân loại, tìm kiếm và quản lý chi tiết thông tin Leader và User.</p>
               </div>
               <button
-                onClick={() => setShowAddUserModal(true)}
+                onClick={handleOpenAddModal}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2"
               >
                 ➕ Thêm thành viên mới
@@ -278,45 +324,52 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
             <div className="bg-gray-50 p-4 rounded-xl border">
               <input
                 type="text"
-                placeholder="🔍 Tìm kiếm theo Tên tài khoản, Mã (L00xxxx/U00xxxx), Email hoặc Số điện thoại..."
+                placeholder="🔍 Tìm kiếm theo Tên, Mã, Email, SĐT, Địa chỉ, Ghi chú..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full border rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Modal / Form thêm thành viên */}
-            {showAddUserModal && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl space-y-4">
+            {/* Modal Thêm / Sửa thành viên */}
+            {showModal && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                <div className="bg-white rounded-xl p-6 w-full max-w-xl shadow-xl space-y-4 my-8">
                   <div className="flex justify-between items-center border-b pb-3">
-                    <h3 className="text-lg font-bold text-gray-800">➕ Thêm thành viên mới</h3>
-                    <button onClick={() => setShowAddUserModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
+                    <h3 className="text-lg font-bold text-gray-800">
+                      {isEditingUser ? '✏️ Chỉnh sửa thông tin thành viên' : '➕ Thêm thành viên mới'}
+                    </h3>
+                    <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
                   </div>
-                  <form onSubmit={handleCreateUser} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Tên tài khoản (Username) *</label>
-                      <input
-                        type="text"
-                        required
-                        value={userForm.username}
-                        onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
-                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                        placeholder="Nhập tên tài khoản..."
-                      />
+                  <form onSubmit={handleSaveUser} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Tên tài khoản (Username) *</label>
+                        <input
+                          type="text"
+                          required
+                          value={userForm.username}
+                          onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2 text-sm"
+                          placeholder="Nhập tên tài khoản..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Mật khẩu {isEditingUser && '(Để trống nếu giữ nguyên)'} *
+                        </label>
+                        <input
+                          type="password"
+                          required={!isEditingUser}
+                          value={userForm.password}
+                          onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2 text-sm"
+                          placeholder="Nhập mật khẩu..."
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Mật khẩu *</label>
-                      <input
-                        type="password"
-                        required
-                        value={userForm.password}
-                        onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                        placeholder="Nhập mật khẩu..."
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Chức vụ (Role) *</label>
                         <select
@@ -335,10 +388,23 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                           value={userForm.phone}
                           onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
                           className="w-full border rounded-lg px-3 py-2 text-sm"
-                          placeholder="Nhập số điện thoại..."
+                          placeholder="Nhập SĐT..."
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Giới tính</label>
+                        <select
+                          value={userForm.gender}
+                          onChange={(e) => setUserForm({ ...userForm, gender: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+                        >
+                          <option value="Nam">Nam</option>
+                          <option value="Nữ">Nữ</option>
+                          <option value="Khác">Khác</option>
+                        </select>
+                      </div>
                     </div>
+
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
                       <input
@@ -349,10 +415,33 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                         placeholder="Nhập địa chỉ email..."
                       />
                     </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Địa chỉ</label>
+                      <input
+                        type="text"
+                        value={userForm.address}
+                        onChange={(e) => setUserForm({ ...userForm, address: e.target.value })}
+                        className="w-full border rounded-lg px-3 py-2 text-sm"
+                        placeholder="Nhập địa chỉ cư trú..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Ghi chú</label>
+                      <textarea
+                        rows="2"
+                        value={userForm.note}
+                        onChange={(e) => setUserForm({ ...userForm, note: e.target.value })}
+                        className="w-full border rounded-lg px-3 py-2 text-sm"
+                        placeholder="Nhập ghi chú thêm..."
+                      ></textarea>
+                    </div>
+
                     <div className="flex justify-end gap-3 pt-3 border-t">
                       <button
                         type="button"
-                        onClick={() => setShowAddUserModal(false)}
+                        onClick={() => setShowModal(false)}
                         className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100"
                       >
                         Hủy
@@ -361,7 +450,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                         type="submit"
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
                       >
-                        Tạo tài khoản
+                        {isEditingUser ? 'Lưu thay đổi' : 'Tạo tài khoản'}
                       </button>
                     </div>
                   </form>
@@ -378,42 +467,45 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                 <table className="min-w-full divide-y divide-gray-200 border rounded-lg overflow-hidden">
                   <thead className="bg-purple-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-purple-700 uppercase">Mã ĐD</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-purple-700 uppercase">Tên tài khoản</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-purple-700 uppercase">Email / SĐT</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-purple-700 uppercase">Trạng thái</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-purple-700 uppercase">Hoạt động</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-purple-700 uppercase">Ngày tạo</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Mã ĐD</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Tài khoản</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Số điện thoại</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Email</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Địa chỉ</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Giới tính</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Trạng thái</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-purple-700 uppercase">Ghi chú</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-purple-700 uppercase">Hành động</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 text-sm">
                     {leaderList.length > 0 ? (
                       leaderList.map((u, idx) => (
                         <tr key={u._id || idx} className="hover:bg-purple-50/30">
-                          <td className="px-4 py-3 whitespace-nowrap font-mono text-xs font-bold text-purple-600">
-                            {u.code || formatMemberCode('LEADER', idx, u._id)}
+                          <td className="px-3 py-3 whitespace-nowrap font-mono text-xs font-bold text-purple-600">
+                            {u.code || formatMemberCode('LEADER', idx)}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{u.username}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                            <div>{u.email || 'Chưa cập nhật'}</div>
-                            <div className="text-xs text-gray-400">{u.phone || ''}</div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td className="px-3 py-3 whitespace-nowrap font-medium text-gray-900">{u.username}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600">{u.phone || 'Chưa có'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600">{u.email || 'Chưa có'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600 truncate max-w-xs">{u.address || 'Chưa có'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600">{u.gender || 'Khác'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">
                             <span className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-full ${
                               u.isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                             }`}>
                               {u.isOnline ? '🟢 Online' : '⚪ Offline'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-600">{u.totalActiveMinutes || 0} phút</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500 text-xs">
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-500 truncate max-w-xs">{u.note || '-'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-right text-sm">
+                            <button onClick={() => handleOpenEditModal(u)} className="text-blue-600 hover:underline font-medium">Sửa</button>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6" className="px-4 py-4 text-center text-sm text-gray-400 italic">
+                        <td colSpan="9" className="px-4 py-4 text-center text-sm text-gray-400 italic">
                           Không tìm thấy Leader nào phù hợp.
                         </td>
                       </tr>
@@ -432,42 +524,45 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                 <table className="min-w-full divide-y divide-gray-200 border rounded-lg overflow-hidden">
                   <thead className="bg-blue-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-blue-700 uppercase">Mã ĐD</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-blue-700 uppercase">Tên tài khoản</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-blue-700 uppercase">Email / SĐT</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-blue-700 uppercase">Trạng thái</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-blue-700 uppercase">Hoạt động</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-blue-700 uppercase">Ngày tạo</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Mã ĐD</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Tài khoản</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Số điện thoại</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Email</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Địa chỉ</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Giới tính</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Trạng thái</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-blue-700 uppercase">Ghi chú</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-blue-700 uppercase">Hành động</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 text-sm">
                     {userList.length > 0 ? (
                       userList.map((u, idx) => (
                         <tr key={u._id || idx} className="hover:bg-blue-50/30">
-                          <td className="px-4 py-3 whitespace-nowrap font-mono text-xs font-bold text-blue-600">
-                            {u.code || formatMemberCode('USER', idx, u._id)}
+                          <td className="px-3 py-3 whitespace-nowrap font-mono text-xs font-bold text-blue-600">
+                            {u.code || formatMemberCode('USER', idx)}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{u.username}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                            <div>{u.email || 'Chưa cập nhật'}</div>
-                            <div className="text-xs text-gray-400">{u.phone || ''}</div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td className="px-3 py-3 whitespace-nowrap font-medium text-gray-900">{u.username}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600">{u.phone || 'Chưa có'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600">{u.email || 'Chưa có'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600 truncate max-w-xs">{u.address || 'Chưa có'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-600">{u.gender || 'Khác'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">
                             <span className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-full ${
                               u.isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                             }`}>
                               {u.isOnline ? '🟢 Online' : '⚪ Offline'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-600">{u.totalActiveMinutes || 0} phút</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500 text-xs">
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                          <td className="px-3 py-3 whitespace-nowrap text-gray-500 truncate max-w-xs">{u.note || '-'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap text-right text-sm">
+                            <button onClick={() => handleOpenEditModal(u)} className="text-blue-600 hover:underline font-medium">Sửa</button>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6" className="px-4 py-4 text-center text-sm text-gray-400 italic">
+                        <td colSpan="9" className="px-4 py-4 text-center text-sm text-gray-400 italic">
                           Không tìm thấy User nào phù hợp.
                         </td>
                       </tr>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import IndexView from './page/IndexView';
-import AuthView from './page/AuthView';
-import AdminView from './page/AdminView';
-import LeaderView from './page/LeaderView';
-import UserView from './page/UserView';
+import IndexView from './components/IndexView';
+import AuthView from './components/AuthView';
+import AdminView from './components/AdminView';
+import LeaderView from './components/LeaderView';
+import UserView from './components/UserView';
 
 const getApiBase = () => {
   const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
