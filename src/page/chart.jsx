@@ -31,7 +31,11 @@ export default function OverviewChart({ nodes = [], users = [] }) {
   const totalUsers = users.length;
   const avgViewTime = nodes.length > 0 ? '1 phút 45 giây' : '0 giây';
 
-  // Biểu đồ cột: Lượt click theo Node
+  // 1. Phân tách danh sách User và Leader
+  const standardUsers = users.filter(u => u.role === 'USER');
+  const leaderUsers = users.filter(u => u.role === 'LEADER');
+
+  // Biểu đồ cột 1: Lượt click theo Node
   const barChartData = {
     labels: nodes.map(n => n.title),
     datasets: [
@@ -44,7 +48,20 @@ export default function OverviewChart({ nodes = [], users = [] }) {
     ],
   };
 
-  // Biểu đồ tròn: Phân bổ vai trò User
+  // 2. Biểu đồ cột mới: Thời gian hoạt động của riêng các LEADER (tính bằng phút)
+  const leaderBarChartData = {
+    labels: leaderUsers.map(l => l.username),
+    datasets: [
+      {
+        label: 'Thời gian hoạt động (Phút)',
+        data: leaderUsers.map(l => l.totalActiveMinutes || 0),
+        backgroundColor: 'rgba(147, 51, 234, 0.8)', // Tím đặc trưng cho Leader
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  // Biểu đồ tròn: Phân bổ vai trò User (Tổng quan)
   const roleCounts = users.reduce((acc, user) => {
     acc[user.role] = (acc[user.role] || 0) + 1;
     return acc;
@@ -85,8 +102,9 @@ export default function OverviewChart({ nodes = [], users = [] }) {
         </div>
       </div>
 
-      {/* Khu vực biểu đồ */}
+      {/* Khu vực biểu đồ phân chia */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+        {/* Biểu đồ 1: Lượt click theo Nodes */}
         <div className="bg-white p-5 rounded-xl border shadow-sm">
           <h3 className="text-sm font-bold text-gray-700 mb-4">📊 Lượt click theo liên kết (Nodes)</h3>
           {nodes.length === 0 ? (
@@ -98,6 +116,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
           )}
         </div>
 
+        {/* Biểu đồ 2: Phân bổ tài khoản người dùng (Doughnut) */}
         <div className="bg-white p-5 rounded-xl border shadow-sm">
           <h3 className="text-sm font-bold text-gray-700 mb-4">👥 Phân bố tài khoản người dùng</h3>
           {totalUsers === 0 ? (
@@ -105,6 +124,18 @@ export default function OverviewChart({ nodes = [], users = [] }) {
           ) : (
             <div className="h-64 flex items-center justify-center">
               <Doughnut data={doughnutChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+            </div>
+          )}
+        </div>
+
+        {/* Biểu đồ 3: Riêng thời gian hoạt động của LEADER */}
+        <div className="bg-white p-5 rounded-xl border shadow-sm lg:col-span-2">
+          <h3 className="text-sm font-bold text-purple-700 mb-4">⏱️ Thống kê thời gian hoạt động của Leader (Phút)</h3>
+          {leaderUsers.length === 0 ? (
+            <p className="text-sm text-gray-400 italic py-10 text-center">Chưa có tài khoản Leader nào hoạt động.</p>
+          ) : (
+            <div className="h-64 flex items-center justify-center">
+              <Bar data={leaderBarChartData} options={{ responsive: true, maintainAspectRatio: false }} />
             </div>
           )}
         </div>
