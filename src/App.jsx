@@ -42,14 +42,19 @@ export default function App() {
       console.error('Lỗi kiểm tra phiên đăng nhập:', err);
       setUser(null);
     } finally {
+      // Đảm bảo luôn tắt trạng thái đang check sau khi gọi xong (dù thành công hay lỗi)
       setIsCheckingAuth(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchNodes();
-    checkAuthStatus();
-  }, [fetchNodes, checkAuthStatus]);
+    // Chạy song song hoặc tuần tự check auth và lấy nodes
+    const initApp = async () => {
+      await checkAuthStatus();
+      await fetchNodes();
+    };
+    initApp();
+  }, [checkAuthStatus, fetchNodes]);
 
   // Xử lý khi click vào node: tăng lượt click rồi mở tab mới đến URL đích
   const handleNodeClick = async (node) => {
@@ -61,7 +66,6 @@ export default function App() {
         await fetch(`${API_BASE}/nodes/${nodeId}/click`, {
           method: 'POST',
         });
-        // Cập nhật lại danh sách nodes cục bộ để phản ánh số lượng click tăng lên
         setNodes((prevNodes) =>
           prevNodes.map((n) =>
             (n._id === nodeId || n.id === nodeId)
@@ -93,12 +97,13 @@ export default function App() {
     }
   };
 
+  // QUAN TRỌNG: Chặn hiển thị giao diện cho đến khi check xong auth để tránh bị chớp màn hình "chưa đăng nhập"
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-sm font-medium text-gray-600">Đang khởi tạo hệ thống...</div>
+          <div className="text-sm font-medium text-gray-600">Đang khôi phục phiên đăng nhập...</div>
         </div>
       </div>
     );
