@@ -1,4 +1,4 @@
-// Đường dẫn file: src/components/AdminView.jsx (hoặc đường dẫn thực tế của file AdminView)
+// Đường dẫn file: src/components/AdminView.jsx
 import React, { useState, useEffect } from 'react';
 import ChartComponent from './chart'; // Đường dẫn tới file chart.jsx của bạn
 
@@ -23,7 +23,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
         if (Array.isArray(data)) {
           setUsers(data);
 
-          // 👇 TÍNH TOÁN THẬT DỰA TRÊN DỮ LIỆU TỪ DATABASE
+          // TÍNH TOÁN THẬT DỰA TRÊN DỮ LIỆU TỪ DATABASE
           const onlineCount = data.filter(u => u.isOnline).length;
           const totalMinutes = data.reduce((acc, u) => acc + (u.totalActiveMinutes || 0), 0);
           const avgMinutes = data.length > 0 ? Math.round(totalMinutes / data.length) : 0;
@@ -75,6 +75,9 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
   const totalClicks = nodes.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
 
+  // Lọc danh sách chỉ giữ lại USER và LEADER cho bảng riêng
+  const userAndLeaderList = users.filter(user => user.role === 'USER' || user.role === 'LEADER');
+
   return (
     <div className="flex flex-col md:flex-row gap-6 min-h-[80vh]">
       {/* Sidebar */}
@@ -96,6 +99,15 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
             }`}
           >
             🔗 Quản lý Nodes
+          </button>
+          {/* 👇 Nút chọn Tab quản lý User & Leader riêng biệt */}
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition ${
+              activeTab === 'users' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            👥 Quản lý User & Leader
           </button>
         </div>
 
@@ -179,6 +191,63 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 👇 TAB RIÊNG BIỆT QUẢN LÝ USER VÀ LEADER */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-gray-800">👥 Danh sách Thành viên (User & Leader)</h2>
+            <p className="text-sm text-gray-500">Thống kê thông tin tài khoản, trạng thái hoạt động và thời gian truy cập trực tuyến của các User và Leader.</p>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 border rounded-lg overflow-hidden">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên tài khoản</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chức vụ</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian hoạt động</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {userAndLeaderList.length > 0 ? (
+                    userAndLeaderList.map((u) => (
+                      <tr key={u._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.username}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            u.role === 'LEADER' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            u.isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {u.isOnline ? '🟢 Đang online' : '⚪ Offline'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {u.totalActiveMinutes || 0} phút
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(u.createdAt).toLocaleDateString('vi-VN')}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                        Không có tài khoản User hoặc Leader nào trong hệ thống.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
