@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export default function useAdminLogic(rawApiBase) {
-  // 🛡️ Xử lý an toàn: Nếu lỡ truyền nhầm object, cố gắng lấy thuộc tính URL hoặc gán về string rỗng
+  // 🛡️ Xử lý an toàn URL API
   const API_BASE = typeof rawApiBase === 'object' && rawApiBase !== null
     ? (rawApiBase.url || rawApiBase.baseURL || '') 
     : (rawApiBase || '');
@@ -11,7 +11,7 @@ export default function useAdminLogic(rawApiBase) {
   const [stats, setStats] = useState({ totalClicks: 0, activeNodes: 0, totalUsers: 0 });
   const [isLoading, setIsLoading] = useState(false);
 
-  // 🎛️ Bổ sung các state giao diện còn thiếu để kết nối mượt mà với AdminView
+  // 🎛️ Các state giao diện
   const [activeTab, setActiveTab] = useState('overview');
   const [showSection, setShowSection] = useState({
     admin: true,
@@ -46,13 +46,16 @@ export default function useAdminLogic(rawApiBase) {
         const totalClicks = data.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
         const activeNodes = data.filter(n => (n.status ? n.status === 'ACTIVE' : true)).length;
         setStats(prev => ({ ...prev, totalClicks, activeNodes }));
+      } else {
+        setNodes([]);
       }
     } catch (err) {
       console.error('Lỗi khi tải danh sách nodes:', err);
+      setNodes([]);
     }
   }, [API_BASE]);
 
-  // Lấy danh sách Users từ API (Yêu cầu quyền Admin/Leader)
+  // Lấy danh sách Users từ API
   const fetchUsers = useCallback(async () => {
     if (!API_BASE) return;
     try {
@@ -62,9 +65,12 @@ export default function useAdminLogic(rawApiBase) {
       if (Array.isArray(data)) {
         setUsers(data);
         setStats(prev => ({ ...prev, totalUsers: data.length }));
+      } else {
+        setUsers([]);
       }
     } catch (err) {
       console.error('Lỗi khi tải danh sách users:', err);
+      setUsers([]);
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +144,6 @@ export default function useAdminLogic(rawApiBase) {
     return { success: false, message: data.message || 'Lỗi cấp tài khoản' };
   };
 
-  // Các hàm tiện ích hỗ trợ Modal và Form User
   const handleOpenAddModal = () => {
     setIsEditingUser(false);
     setUserForm({
@@ -176,7 +181,7 @@ export default function useAdminLogic(rawApiBase) {
     e.preventDefault();
     const endpoint = isEditingUser 
       ? `${API_BASE}/admin/users/${userForm._id}` 
-      : `${API_BASE}/auth/create-leader`; // Hoặc endpoint tạo user tương ứng của bạn
+      : `${API_BASE}/auth/create-leader`;
     const method = isEditingUser ? 'PUT' : 'POST';
 
     try {
@@ -222,9 +227,12 @@ export default function useAdminLogic(rawApiBase) {
     return `${prefix}${String(index + 1).padStart(3, '0')}`;
   };
 
-  // Lọc danh sách user theo searchTerm
-  const filteredUsers = users.filter(u => {
-    const term = searchTerm.toLowerCase();
+  // 🛡️ Đảm bảo an toàn tuyệt đối, luôn trả về mảng dù users chưa tải xong
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeNodes = Array.isArray(nodes) ? nodes : [];
+
+  const filteredUsers = safeUsers.filter(u => {
+    const term = (searchTerm || '').toLowerCase();
     return (
       (u.username && u.username.toLowerCase().includes(term)) ||
       (u.email && u.email.toLowerCase().includes(term)) ||
@@ -240,14 +248,14 @@ export default function useAdminLogic(rawApiBase) {
 
   const totalClicks = stats.totalClicks;
   const systemStats = {
-    onlineUsers: users.filter(u => u.isOnline).length,
+    onlineUsers: safeUsers.filter(u => u.isOnline).length,
     avgActiveTime: '15 phút',
-    totalAccessTime: `${users.length * 45} phút`
+    totalAccessTime: `${safeUsers.length * 45} phút`
   };
 
   return {
-    nodes,
-    users,
+    nodes: safeNodes,
+    users: safeUsers,
     stats,
     isLoading,
     refreshNodes: fetchNodes,
@@ -255,7 +263,6 @@ export default function useAdminLogic(rawApiBase) {
     saveNode,
     removeNode,
     createUser,
-    // Trả về đầy đủ state/hàm phục vụ cho AdminView
     activeTab, setActiveTab,
     showSection, setShowSection,
     nodeForm, setNodeForm,
