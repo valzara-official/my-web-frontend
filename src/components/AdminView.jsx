@@ -22,6 +22,9 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
   const [showModal, setShowModal] = useState(false);
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
+  
+  // State quản lý ẩn/hiện mật khẩu
+  const [showPassword, setShowPassword] = useState(false);
 
   const [userForm, setUserForm] = useState({
     username: '',
@@ -96,6 +99,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
   const handleOpenAddModal = () => {
     setIsEditingUser(false);
     setSelectedUserId(null);
+    setShowPassword(false);
     setUserForm({
       username: '',
       password: '',
@@ -113,6 +117,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
   const handleOpenEditModal = (u) => {
     setIsEditingUser(true);
     setSelectedUserId(u._id);
+    setShowPassword(false);
     setUserForm({
       username: u.username || '',
       password: '', // Để trống nếu không muốn đổi mật khẩu
@@ -129,30 +134,42 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
   // Xử lý Lưu Thêm hoặc Sửa thành viên
   const handleSaveUser = (e) => {
     e.preventDefault();
+    
+    // Nếu đang sửa dùng đường dẫn /auth/users/:id, nếu thêm mới dùng /auth/register
     const endpoint = isEditingUser 
-      ? `${API_BASE}/admin/users/${selectedUserId}` 
-      : `${API_BASE}/auth/register`; // Hoặc endpoint tạo user phù hợp backend của bạn
+      ? `${API_BASE}/auth/users/${selectedUserId}` 
+      : `${API_BASE}/auth/register`; 
+      
     const method = isEditingUser ? 'PUT' : 'POST';
+
+    // Chuẩn bị dữ liệu gửi đi (nếu đang sửa mà để trống mật khẩu thì bỏ qua trường password)
+    const payload = { ...userForm };
+    if (isEditingUser && (!payload.password || payload.password.trim() === '')) {
+      delete payload.password;
+    }
 
     fetch(endpoint, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userForm),
+      body: JSON.stringify(payload),
       credentials: 'include'
     })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success || data.userId || data._id || data.modifiedCount > 0) {
-          alert(isEditingUser ? 'Cập nhật thành viên thành công!' : 'Thêm thành viên thành công!');
-          setShowModal(false);
-          fetchUsers();
-        } else {
-          alert(data.message || 'Thực hiện không thành công.');
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Thực hiện không thành công');
         }
+        return data;
+      })
+      .then(data => {
+        alert(isEditingUser ? 'Cập nhật thành viên thành công!' : 'Thêm thành viên thành công!');
+        setShowModal(false);
+        setShowPassword(false);
+        fetchUsers();
       })
       .catch(err => {
         console.error('Lỗi thao tác user:', err);
-        alert('Có lỗi xảy ra khi kết nối đến máy chủ.');
+        alert(err.message || 'Có lỗi xảy ra khi kết nối đến máy chủ.');
       });
   };
 
@@ -358,14 +375,23 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Mật khẩu {isEditingUser && '(Để trống nếu giữ nguyên)'} *
                         </label>
-                        <input
-                          type="password"
-                          required={!isEditingUser}
-                          value={userForm.password}
-                          onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                          className="w-full border rounded-lg px-3 py-2 text-sm"
-                          placeholder="Nhập mật khẩu..."
-                        />
+                        <div className="relative">
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            required={!isEditingUser}
+                            value={userForm.password}
+                            onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                            className="w-full border rounded-lg px-3 py-2 text-sm pr-10"
+                            placeholder="Nhập mật khẩu..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 text-sm focus:outline-none"
+                          >
+                            {showPassword ? '👁️‍🗨️' : '👁️'}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
