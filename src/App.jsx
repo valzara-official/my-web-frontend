@@ -1,3 +1,4 @@
+// Đường dẫn file: src/App.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import IndexView from './components/IndexView';
 import AuthView from './components/AuthView';
@@ -19,6 +20,9 @@ export default function App() {
   const [nodes, setNodes] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(() => localStorage.getItem('user_role') || 'USER');
+  
+  // 🌟 Thêm state lưu thông tin user hiện tại để hiển thị tên lên Navbar
+  const [currentUser, setCurrentUser] = useState(null);
 
   const changeView = (newView) => {
     setView(newView);
@@ -32,9 +36,13 @@ export default function App() {
     fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
+        // Hỗ trợ cả 2 dạng trả về từ backend: data.success hoặc trả thẳng object user / data.user
+        const userData = data.user || (data.success ? data : null);
+        
+        if (userData && (userData._id || userData.id || userData.username)) {
           setIsLoggedIn(true);
-          const role = data.user?.role || 'USER';
+          setCurrentUser(userData);
+          const role = userData.role || 'USER';
           setUserRole(role);
           localStorage.setItem('user_role', role);
 
@@ -43,6 +51,7 @@ export default function App() {
           }
         } else {
           setIsLoggedIn(false);
+          setCurrentUser(null);
           localStorage.removeItem('user_role');
           if (['ADMIN', 'LEADER', 'USER'].includes(savedView)) {
             changeView('AUTH');
@@ -51,24 +60,29 @@ export default function App() {
       })
       .catch(() => {
         setIsLoggedIn(false);
+        setCurrentUser(null);
       });
   }, []);
 
-  // 🌟 VÒNG LẶP HEARTBEAT: Gửi tín hiệu online mỗi 60 giây khi user đã đăng nhập
+  // 🌟 VÒNG LẶP HEARTBEAT: Sửa lại gọi đúng route hoặc bắt lỗi ngầm nếu backend chưa có
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    // Gửi ngay 1 lần khi vừa xác thực thành công
     const sendHeartbeat = () => {
-      fetch(`${API_BASE}/auth/heartbeat`, {
+      // Thử gọi /auth/ping hoặc /auth/heartbeat tuỳ theo backend hỗ trợ route nào
+      fetch(`${API_BASE}/auth/ping`, {
         method: 'POST',
         credentials: 'include'
-      }).catch(err => console.error('Heartbeat error:', err));
+      }).catch(() => {
+        // Fallback sang heartbeat nếu ping lỗi
+        fetch(`${API_BASE}/auth/heartbeat`, {
+          method: 'POST',
+          credentials: 'include'
+        }).catch(() => {});
+      });
     };
 
     sendHeartbeat();
-
-    // Thiết lập interval chạy định kỳ mỗi 1 phút (60000ms)
     const interval = setInterval(sendHeartbeat, 60000);
 
     return () => clearInterval(interval);
@@ -82,6 +96,7 @@ export default function App() {
       .then(res => {
         if (res.status === 401 || res.status === 403) {
           setIsLoggedIn(false);
+          setCurrentUser(null);
           localStorage.removeItem('user_role');
           changeView('AUTH');
           return null;
@@ -131,6 +146,7 @@ export default function App() {
       .catch(err => console.error('Lỗi đăng xuất:', err))
       .finally(() => {
         setIsLoggedIn(false);
+        setCurrentUser(null);
         setUserRole('USER');
         setNodes([]);
         localStorage.removeItem('user_role');
@@ -177,13 +193,24 @@ export default function App() {
             </button>
           )}
 
+          {/* 🌟 HIỂN THỊ TÊN TÀI KHOẢN CẠNH NÚT VỀ TRANG CHỦ KHI Ở CÁC TRANG KHÁC INDEX */}
           {view !== 'INDEX' && (
-            <button
-              onClick={() => changeView('INDEX')}
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition"
-            >
-              Về Trang Chủ
-            </button>
+            <div className="flex items-center gap-3">
+              {currentUser && (
+                <div className="hidden sm:flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border text-sm">
+                  <span className="font-semibold text-gray-700">👤 {currentUser.username}</span>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                    {currentUser.role}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={() => changeView('INDEX')}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition"
+              >
+                Về Trang Chủ
+              </button>
+            </div>
           )}
         </div>
       </nav>
