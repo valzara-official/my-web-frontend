@@ -5,7 +5,7 @@ import LeaderView from './views/LeaderView';
 import AdminView from './views/AdminView';
 import AuthView from './views/AuthView';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://my-web-backend-xxxx.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com/api';
 
 export default function App() {
   const [user, setUser] = useState(null);
