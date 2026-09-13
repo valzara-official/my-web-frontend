@@ -131,18 +131,43 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
     setShowModal(true);
   };
 
+  // Xử lý xóa thành viên
+  const handleDeleteUser = (userId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa thành viên này không?')) {
+      return;
+    }
+
+    fetch(`${API_BASE}/auth/users/${userId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Xóa không thành công');
+        }
+        return data;
+      })
+      .then(data => {
+        alert('Xóa thành viên thành công!');
+        fetchUsers(); // Tải lại danh sách sau khi xóa
+      })
+      .catch(err => {
+        console.error('Lỗi khi xóa user:', err);
+        alert(err.message || 'Có lỗi xảy ra khi kết nối đến máy chủ.');
+      });
+  };
+
   // Xử lý Lưu Thêm hoặc Sửa thành viên
   const handleSaveUser = (e) => {
     e.preventDefault();
     
-    // Nếu đang sửa dùng đường dẫn /auth/users/:id, nếu thêm mới dùng /auth/register
     const endpoint = isEditingUser 
       ? `${API_BASE}/auth/users/${selectedUserId}` 
       : `${API_BASE}/auth/register`; 
       
     const method = isEditingUser ? 'PUT' : 'POST';
 
-    // Chuẩn bị dữ liệu gửi đi (nếu đang sửa mà để trống mật khẩu thì bỏ qua trường password)
     const payload = { ...userForm };
     if (isEditingUser && (!payload.password || payload.password.trim() === '')) {
       delete payload.password;
@@ -175,13 +200,11 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
   const totalClicks = nodes.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
 
-  // Tạo mã định danh chuẩn
   const formatMemberCode = (role, index) => {
     const prefix = (role || '').toUpperCase() === 'LEADER' ? 'L' : 'U';
     return `${prefix}${String(index + 1).padStart(6, '0')}`;
   };
 
-  // Lọc dữ liệu theo từ khóa tìm kiếm
   const filteredUsers = users.filter(user => {
     const role = (user.role || '').toUpperCase();
     if (role !== 'USER' && role !== 'LEADER') return false;
@@ -524,8 +547,9 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                             </span>
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap text-gray-500 truncate max-w-xs">{u.note || '-'}</td>
-                          <td className="px-3 py-3 whitespace-nowrap text-right text-sm">
+                          <td className="px-3 py-3 whitespace-nowrap text-right text-sm space-x-2">
                             <button onClick={() => handleOpenEditModal(u)} className="text-blue-600 hover:underline font-medium">Sửa</button>
+                            <button onClick={() => handleDeleteUser(u._id)} className="text-red-600 hover:underline font-medium">Xóa</button>
                           </td>
                         </tr>
                       ))
@@ -581,8 +605,9 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                             </span>
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap text-gray-500 truncate max-w-xs">{u.note || '-'}</td>
-                          <td className="px-3 py-3 whitespace-nowrap text-right text-sm">
+                          <td className="px-3 py-3 whitespace-nowrap text-right text-sm space-x-2">
                             <button onClick={() => handleOpenEditModal(u)} className="text-blue-600 hover:underline font-medium">Sửa</button>
+                            <button onClick={() => handleDeleteUser(u._id)} className="text-red-600 hover:underline font-medium">Xóa</button>
                           </td>
                         </tr>
                       ))
