@@ -1,4 +1,3 @@
-// Đường dẫn file: src/components/AdminView.jsx
 import React from 'react';
 import ChartComponent from './chart';
 import useAdminLogic from '../hooks/useAdminLogic';
