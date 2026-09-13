@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import IndexView from './src/components/IndexView';
-import AuthView from './src/components/AuthView'; // Vẫn giữ component này để dùng làm nội dung bên trong Modal
-import AdminView from './src/components/AdminView';
-import LeaderView from './src/components/LeaderView';
-import UserView from './src/components/UserView';
+import IndexView from './components/IndexView';
+import AuthView from './components/AuthView'; // Vẫn giữ component này để dùng làm nội dung bên trong Modal
+import AdminView from './components/AdminView';
+import LeaderView from './components/LeaderView';
+import UserView from './components/UserView';
 
 const getApiBase = () => {
   const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
