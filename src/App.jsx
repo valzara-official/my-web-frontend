@@ -18,63 +18,54 @@ export default function App() {
   const [view, setView] = useState(() => localStorage.getItem('current_view') || 'INDEX');
   const [authMode, setAuthMode] = useState('LOGIN');
   const [nodes, setNodes] = useState([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // 🌟 Đọc trạng thái đăng nhập trực tiếp từ localStorage khi F5 để không bị mất phiên
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('is_logged_in') === 'true';
+  });
+  
   const [userRole, setUserRole] = useState(() => localStorage.getItem('user_role') || 'USER');
   
-  // 🌟 Thêm state lưu thông tin user hiện tại để hiển thị tên lên Navbar
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('current_user');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   const changeView = (newView) => {
     setView(newView);
     localStorage.setItem('current_view', newView);
   };
 
-  // Kiểm tra phiên làm việc khi load hoặc refresh trang
+  // 🌟 Khi F5 hoặc load lại trang: Đọc thẳng từ localStorage, KHÔNG gọi fetch /auth/me ép logout ngầm nữa
   useEffect(() => {
-    const savedView = localStorage.getItem('current_view') || 'INDEX';
+    const logged = localStorage.getItem('is_logged_in') === 'true';
+    const role = localStorage.getItem('user_role') || 'USER';
+    const savedUser = localStorage.getItem('current_user');
 
-    fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => {
-        // Hỗ trợ cả 2 dạng trả về từ backend: data.success hoặc trả thẳng object user / data.user
-        const userData = data.user || (data.success ? data : null);
-        
-        if (userData && (userData._id || userData.id || userData.username)) {
-          setIsLoggedIn(true);
-          setCurrentUser(userData);
-          const role = userData.role || 'USER';
-          setUserRole(role);
-          localStorage.setItem('user_role', role);
-
-          if (['ADMIN', 'LEADER', 'USER', 'AUTH'].includes(savedView) && savedView !== 'INDEX') {
-            changeView(role);
-          }
-        } else {
-          setIsLoggedIn(false);
-          setCurrentUser(null);
-          localStorage.removeItem('user_role');
-          if (['ADMIN', 'LEADER', 'USER'].includes(savedView)) {
-            changeView('AUTH');
-          }
-        }
-      })
-      .catch(() => {
-        setIsLoggedIn(false);
+    if (logged && savedUser) {
+      setIsLoggedIn(true);
+      setUserRole(role);
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
         setCurrentUser(null);
-      });
+      }
+    }
   }, []);
 
-  // 🌟 VÒNG LẶP HEARTBEAT: Sửa lại gọi đúng route hoặc bắt lỗi ngầm nếu backend chưa có
+  // VÒNG LẶP HEARTBEAT: Gửi ngầm để server cập nhật trạng thái online
   useEffect(() => {
     if (!isLoggedIn) return;
 
     const sendHeartbeat = () => {
-      // Thử gọi /auth/ping hoặc /auth/heartbeat tuỳ theo backend hỗ trợ route nào
       fetch(`${API_BASE}/auth/ping`, {
         method: 'POST',
         credentials: 'include'
       }).catch(() => {
-        // Fallback sang heartbeat nếu ping lỗi
         fetch(`${API_BASE}/auth/heartbeat`, {
           method: 'POST',
           credentials: 'include'
@@ -95,10 +86,7 @@ export default function App() {
     fetch(endpoint, { credentials: 'include' })
       .then(res => {
         if (res.status === 401 || res.status === 403) {
-          setIsLoggedIn(false);
-          setCurrentUser(null);
-          localStorage.removeItem('user_role');
-          changeView('AUTH');
+          // Chỉ khi gọi các API quản trị cốt lõi mà bị từ chối quyền thực sự thì mới xử lý đăng xuất
           return null;
         }
         return res.json();
@@ -141,6 +129,7 @@ export default function App() {
     window.open(node.target_url || node.url, '_blank');
   };
 
+  // 🌟 Hàm Đăng xuất: Chỉ khi bấm nút này mới xóa sạch dữ liệu phiên làm việc
   const handleLogout = () => {
     fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
       .catch(err => console.error('Lỗi đăng xuất:', err))
@@ -149,8 +138,13 @@ export default function App() {
         setCurrentUser(null);
         setUserRole('USER');
         setNodes([]);
+
+        // Xóa sạch trạng thái khỏi localStorage
+        localStorage.removeItem('is_logged_in');
         localStorage.removeItem('user_role');
+        localStorage.removeItem('current_user');
         localStorage.removeItem('current_view');
+        
         changeView('INDEX');
       });
   };
@@ -193,7 +187,7 @@ export default function App() {
             </button>
           )}
 
-          {/* 🌟 HIỂN THỊ TÊN TÀI KHOẢN CẠNH NÚT VỀ TRANG CHỦ KHI Ở CÁC TRANG KHÁC INDEX */}
+          {/* HIỂN THỊ TÊN TÀI KHOẢN CẠNH NÚT VỀ TRANG CHỦ KHI Ở CÁC TRANG KHÁC INDEX */}
           {view !== 'INDEX' && (
             <div className="flex items-center gap-3">
               {currentUser && (
