@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import IndexView from './src/components/IndexView';
-import AuthView from './src/components/AuthView';
-import AdminView from './src/components/AdminView';
-import LeaderView from './src/components/LeaderView';
-import UserView from './src/components/UserView';
+import IndexView from './components/IndexView';
+import AuthView from './components/AuthView';
+import AdminView from './components/AdminView';
+import LeaderView from './components/LeaderView';
+import UserView from './components/UserView';
 
 const getApiBase = () => {
   const envUrl = import.meta.env?.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com';
@@ -18,7 +18,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState('LOGIN');
   const [nodes, setNodes] = useState([]);
 
-  // 🌟 Đọc trạng thái đăng nhập trực tiếp từ localStorage khi F5 để không bị mất phiên
+  // Đọc trạng thái đăng nhập từ localStorage
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('is_logged_in') === 'true';
   });
@@ -34,12 +34,23 @@ export default function App() {
     }
   });
 
+  // 🌟 Hàm chuyển view có kèm đồng bộ lại state từ localStorage để không bao giờ bị lệch trạng thái
   const changeView = (newView) => {
+    const logged = localStorage.getItem('is_logged_in') === 'true';
+    const role = localStorage.getItem('user_role') || 'USER';
+    const savedUser = localStorage.getItem('current_user');
+
+    setIsLoggedIn(logged);
+    setUserRole(role);
+    if (savedUser) {
+      try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
+    }
+
     setView(newView);
     localStorage.setItem('current_view', newView);
   };
 
-  // 🌟 Khi F5 hoặc load lại trang: Đọc thẳng từ localStorage, KHÔNG gọi fetch /auth/me ép logout ngầm nữa
+  // Khi F5 hoặc load lại trang
   useEffect(() => {
     const logged = localStorage.getItem('is_logged_in') === 'true';
     const role = localStorage.getItem('user_role') || 'USER';
@@ -56,7 +67,7 @@ export default function App() {
     }
   }, []);
 
-  // VÒNG LẶP HEARTBEAT: Gửi ngầm để server cập nhật trạng thái online
+  // VÒNG LẶP HEARTBEAT
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -127,7 +138,7 @@ export default function App() {
     window.open(node.target_url || node.url, '_blank');
   };
 
-  // 🌟 Hàm Đăng xuất: Chỉ khi bấm nút này mới xóa sạch dữ liệu phiên làm việc
+  // Hàm Đăng xuất
   const handleLogout = () => {
     fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
       .catch(err => console.error('Lỗi đăng xuất:', err))
@@ -137,7 +148,6 @@ export default function App() {
         setUserRole('USER');
         setNodes([]);
 
-        // Xóa sạch trạng thái khỏi localStorage
         localStorage.removeItem('is_logged_in');
         localStorage.removeItem('user_role');
         localStorage.removeItem('current_user');
@@ -146,6 +156,10 @@ export default function App() {
         changeView('INDEX');
       });
   };
+
+  // 🌟 Kiểm tra trạng thái thực tế từ localStorage để render chính xác trên Navbar
+  const isUserAuthenticated = isLoggedIn || localStorage.getItem('is_logged_in') === 'true';
+  const activeRole = userRole || localStorage.getItem('user_role') || 'USER';
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
@@ -159,7 +173,7 @@ export default function App() {
         </h1>
 
         <div className="flex space-x-3 items-center">
-          {view === 'INDEX' && !isLoggedIn && (
+          {view === 'INDEX' && !isUserAuthenticated && (
             <>
               <button
                 onClick={() => { setAuthMode('REGISTER'); changeView('AUTH'); }}
@@ -176,12 +190,12 @@ export default function App() {
             </>
           )}
 
-          {isLoggedIn && view === 'INDEX' && (
+          {isUserAuthenticated && view === 'INDEX' && (
             <button
-              onClick={() => changeView(userRole)}
+              onClick={() => changeView(activeRole)}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
             >
-              Vào trang quản trị ({userRole})
+              Vào trang quản trị ({activeRole})
             </button>
           )}
 
