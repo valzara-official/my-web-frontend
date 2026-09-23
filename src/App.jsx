@@ -1,287 +1,200 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import IndexView from './views/IndexView';
+import UserView from './views/UserView';
+import LeaderView from './views/LeaderView';
+import AdminView from './views/AdminView';
+import AuthView from './views/AuthView';
 
-export default function useAdminLogic(rawApiBase) {
-  const API_BASE = typeof rawApiBase === 'object' && rawApiBase !== null
-    ? (rawApiBase.url || rawApiBase.baseURL || '') 
-    : (rawApiBase || '');
+const API_BASE = import.meta.env.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com/api';
 
+export default function App() {
+  const [user, setUser] = useState(null);
   const [nodes, setNodes] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [stats, setStats] = useState({ totalClicks: 0, activeNodes: 0, totalUsers: 0 });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showSection, setShowSection] = useState({
-    admin: true,
-    leader: true,
-    user: true
-  });
-  const [nodeForm, setNodeForm] = useState({ title: '', url: '' });
-  const [editingNodeId, setEditingNodeId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [isEditingUser, setIsEditingUser] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [userForm, setUserForm] = useState({
-    username: '',
-    password: '',
-    role: 'USER',
-    phone: '',
-    gender: 'Nam',
-    email: '',
-    address: '',
-    note: ''
-  });
-
-  // Helper trích xuất mảng an toàn dù API trả về dạng mảng hay object bọc
-  const extractArray = (data, keys = ['users', 'nodes', 'data', 'items']) => {
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === 'object') {
-      for (const key of keys) {
-        if (Array.isArray(data[key])) return data[key];
-      }
-      // Tìm bất kỳ thuộc tính nào là mảng trong object
-      const foundKey = Object.keys(data).find(k => Array.isArray(data[k]));
-      if (foundKey) return data[foundKey];
-    }
-    return [];
-  };
-
-  // Lấy danh sách Nodes từ API
+  // Lấy danh sách nodes/dịch vụ từ server (Public)
   const fetchNodes = useCallback(async () => {
-    if (!API_BASE) return;
     try {
-      const res = await fetch(`${API_BASE}/nodes`, { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/nodes`);
       const data = await res.json();
-      const list = extractArray(data, ['nodes', 'data']);
-      setNodes(list);
-      const totalClicks = list.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
-      const activeNodes = list.filter(n => (n.status ? n.status === 'ACTIVE' : true)).length;
-      setStats(prev => ({ ...prev, totalClicks, activeNodes }));
+      if (Array.isArray(data)) {
+        setNodes(data);
+      }
     } catch (err) {
       console.error('Lỗi khi tải danh sách nodes:', err);
-      setNodes([]);
     }
-  }, [API_BASE]);
+  }, []);
 
-  // Lấy danh sách Users từ API
-  const fetchUsers = useCallback(async () => {
-    if (!API_BASE) return;
+  // Kiểm tra phiên đăng nhập qua HttpOnly Cookie khi khởi động ứng dụng
+  const checkAuthStatus = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const res = await fetch(`${API_BASE}/auth/users`, { credentials: 'include' });
-      const data = await res.json();
-      const list = extractArray(data, ['users', 'data', 'list']);
-      setUsers(list);
-      setStats(prev => ({ ...prev, totalUsers: list.length }));
-    } catch (err) {
-      console.error('Lỗi khi tải danh sách users:', err);
-      setUsers([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [API_BASE]);
-
-  useEffect(() => {
-    fetchNodes();
-    fetchUsers();
-  }, [fetchNodes, fetchUsers]);
-
-  const saveNode = async (formData, editId) => {
-    const targetId = editId !== undefined ? editId : editingNodeId;
-    const currentForm = formData || nodeForm;
-    const endpoint = targetId 
-      ? `${API_BASE}/admin/nodes/${targetId}` 
-      : `${API_BASE}/admin/nodes`;
-    const method = targetId ? 'PUT' : 'POST';
-
-    const res = await fetch(endpoint, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(currentForm),
-      credentials: 'include'
-    });
-    const data = await res.json();
-    if (data.success || data._id || data.id) {
-      await fetchNodes();
-      setEditingNodeId(null);
-      setNodeForm({ title: '', url: '' });
-      return { success: true, message: targetId ? 'Cập nhật node thành công!' : 'Thêm node mới thành công!' };
-    }
-    return { success: false, message: data.message || 'Có lỗi xảy ra' };
-  };
-
-  const handleSaveNode = async (e) => {
-    e.preventDefault();
-    await saveNode(nodeForm, editingNodeId);
-  };
-
-  const removeNode = async (id) => {
-    const res = await fetch(`${API_BASE}/admin/nodes/${id}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
-    const data = await res.json();
-    if (data.success) {
-      await fetchNodes();
-      return { success: true };
-    }
-    return { success: false, message: data.message || 'Lỗi khi xóa node' };
-  };
-
-  const handleDeleteNode = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa node này?')) {
-      await removeNode(id);
-    }
-  };
-
-  const createUser = async (username, password) => {
-    const res = await fetch(`${API_BASE}/auth/create-leader`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role: 'USER' }),
-      credentials: 'include'
-    });
-    const data = await res.json();
-    if (data.success) {
-      await fetchUsers();
-      return { success: true, message: 'Cấp tài khoản User thành công!' };
-    }
-    return { success: false, message: data.message || 'Lỗi cấp tài khoản' };
-  };
-
-  const handleOpenAddModal = () => {
-    setIsEditingUser(false);
-    setUserForm({
-      username: '',
-      password: '',
-      role: 'USER',
-      phone: '',
-      gender: 'Nam',
-      email: '',
-      address: '',
-      note: ''
-    });
-    setShowPassword(false);
-    setShowModal(true);
-  };
-
-  const handleOpenEditModal = (user) => {
-    setIsEditingUser(true);
-    setUserForm({
-      _id: user._id || user.id,
-      username: user.username || '',
-      password: '',
-      role: user.role || 'USER',
-      phone: user.phone || '',
-      gender: user.gender || 'Nam',
-      email: user.email || '',
-      address: user.address || '',
-      note: user.note || ''
-    });
-    setShowPassword(false);
-    setShowModal(true);
-  };
-
-  const handleSaveUser = async (e) => {
-    e.preventDefault();
-    const endpoint = isEditingUser 
-      ? `${API_BASE}/admin/users/${userForm._id}` 
-      : `${API_BASE}/auth/create-leader`;
-    const method = isEditingUser ? 'PUT' : 'POST';
-
-    try {
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userForm),
-        credentials: 'include'
+      const res = await fetch(`${API_BASE}/auth/check`, {
+        credentials: 'include',
       });
       const data = await res.json();
-      if (data.success || data._id || data.id) {
-        await fetchUsers();
-        setShowModal(false);
+      if (data.success && data.user) {
+        setUser(data.user);
       } else {
-        alert(data.message || 'Lỗi khi lưu thông tin thành viên');
+        setUser(null);
       }
     } catch (err) {
-      console.error('Lỗi lưu user:', err);
+      console.error('Lỗi kiểm tra phiên đăng nhập:', err);
+      setUser(null);
+    } finally {
+      setIsCheckingAuth(false);
     }
-  };
+  }, []);
 
-  const handleDeleteUser = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa thành viên này?')) {
+  useEffect(() => {
+    const initApp = async () => {
+      await checkAuthStatus();
+      await fetchNodes();
+    };
+    initApp();
+  }, [checkAuthStatus, fetchNodes]);
+
+  // Xử lý khi click vào node: tăng lượt click rồi mở tab mới đến URL đích
+  const handleNodeClick = async (node) => {
+    const nodeId = node._id || node.id;
+    const targetUrl = node.url || node.target_url;
+
+    if (nodeId) {
       try {
-        const res = await fetch(`${API_BASE}/admin/users/${id}`, {
-          method: 'DELETE',
-          credentials: 'include'
+        await fetch(`${API_BASE}/nodes/${nodeId}/click`, {
+          method: 'POST',
         });
-        const data = await res.json();
-        if (data.success) {
-          await fetchUsers();
-        } else {
-          alert(data.message || 'Lỗi khi xóa thành viên');
-        }
+        setNodes((prevNodes) =>
+          prevNodes.map((n) =>
+            (n._id === nodeId || n.id === nodeId)
+              ? { ...n, clicks: (n.clicks || n.click_count || 0) + 1 }
+              : n
+          )
+        );
       } catch (err) {
-        console.error('Lỗi xóa user:', err);
+        console.error('Không thể ghi nhận lượt click:', err);
       }
     }
+
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
-  const formatMemberCode = (role, index) => {
-    const prefix = role === 'ADMIN' ? 'AD' : role === 'LEADER' ? 'LD' : 'US';
-    return `${prefix}${String(index + 1).padStart(3, '0')}`;
+  // Đăng xuất khỏi hệ thống
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setUser(null);
+      alert('Đăng xuất thành công!');
+    } catch (err) {
+      console.error('Lỗi đăng xuất:', err);
+    }
   };
 
-  const safeUsers = Array.isArray(users) ? users : [];
-  const safeNodes = Array.isArray(nodes) ? nodes : [];
-
-  const filteredUsers = safeUsers.filter(u => {
-    const term = (searchTerm || '').toLowerCase();
+  if (isCheckingAuth) {
     return (
-      (u.username && u.username.toLowerCase().includes(term)) ||
-      (u.email && u.email.toLowerCase().includes(term)) ||
-      (u.phone && u.phone.toLowerCase().includes(term)) ||
-      (u.address && u.address.toLowerCase().includes(term)) ||
-      (u.note && u.note.toLowerCase().includes(term))
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-sm font-medium text-gray-600">Đang khôi phục phiên đăng nhập...</div>
+        </div>
+      </div>
     );
-  });
+  }
 
-  const adminList = filteredUsers.filter(u => u.role === 'ADMIN');
-  const leaderList = filteredUsers.filter(u => u.role === 'LEADER');
-  const userList = filteredUsers.filter(u => u.role === 'USER' || !u.role);
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans">
+      {/* NAVBAR CHUNG */}
+      <header className="bg-white border-b sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+              V
+            </div>
+            <div>
+              <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Valzaria Hub
+              </span>
+              <span className="block text-[10px] text-gray-400 font-medium tracking-wide uppercase">
+                Enterprise Portal
+              </span>
+            </div>
+          </div>
 
-  const totalClicks = stats.totalClicks;
-  const systemStats = {
-    onlineUsers: safeUsers.filter(u => u.isOnline).length,
-    avgActiveTime: '15 phút',
-    totalAccessTime: `${safeUsers.length * 45} phút`
-  };
+          <div className="flex items-center gap-4">
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div className="text-right hidden sm:block">
+                  <div className="text-sm font-bold text-gray-800">{user.username}</div>
+                  <div className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wider">{user.role}</div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 px-3.5 py-2 rounded-xl text-xs font-semibold transition border border-gray-200"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition"
+              >
+                Đăng nhập
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
 
-  return {
-    nodes: safeNodes,
-    users: safeUsers,
-    stats,
-    isLoading,
-    refreshNodes: fetchNodes,
-    refreshUsers: fetchUsers,
-    saveNode,
-    removeNode,
-    createUser,
-    activeTab, setActiveTab,
-    showSection, setShowSection,
-    nodeForm, setNodeForm,
-    editingNodeId, setEditingNodeId,
-    searchTerm, setSearchTerm,
-    showModal, setShowModal,
-    isEditingUser,
-    showPassword, setShowPassword,
-    userForm, setUser`,
-    handleSaveNode, handleDeleteNode,
-    handleOpenAddModal, handleOpenEditModal,
-    handleDeleteUser, handleSaveUser,
-    totalClicks, formatMemberCode,
-    adminList, leaderList, userList,
-    systemStats
-  };
+      {/* MAIN BODY VIEW ROUTING */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {!user ? (
+          <IndexView
+            nodes={nodes}
+            onNodeClick={handleNodeClick}
+            onOpenAuth={() => setShowAuthModal(true)}
+          />
+        ) : user.role === 'ADMIN' ? (
+          /* ĐÃ SỬA: Truyền đủ nodes và refreshNodes vào AdminView */
+          <AdminView
+            nodes={nodes}
+            refreshNodes={fetchNodes}
+            handleLogout={handleLogout}
+            API_BASE={API_BASE}
+          />
+        ) : user.role === 'LEADER' ? (
+          <LeaderView handleLogout={handleLogout} API_BASE={API_BASE} />
+        ) : (
+          <UserView
+            user={user}
+            nodes={nodes}
+            onNodeClick={handleNodeClick}
+            handleLogout={handleLogout}
+          />
+        )}
+      </main>
+
+      {/* FOOTER */}
+      <footer className="bg-white border-t py-6 text-center text-xs text-gray-500">
+        <p>© {new Date().getFullYear()} Valzaria System. Bảo mật và phân quyền toàn diện.</p>
+      </footer>
+
+      {/* AUTH MODAL */}
+      {showAuthModal && !user && (
+        <AuthView
+          API_BASE={API_BASE}
+          onLoginSuccess={(loggedInUser) => {
+            setUser(loggedInUser);
+            setShowAuthModal(false);
+          }}
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
+    </div>
+  );
 }
