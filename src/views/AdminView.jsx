@@ -70,7 +70,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl">
                 <div className="text-sm font-medium text-blue-600">Tổng số Nodes hiện có</div>
-                <div className="text-3xl font-bold text-blue-800 mt-2">{nodes.length}</div>
+                <div className="text-3xl font-bold text-blue-800 mt-2">{nodes?.length || 0}</div>
               </div>
 
               <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-xl">
@@ -80,7 +80,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
               <div className="bg-purple-50 border border-purple-100 p-5 rounded-xl">
                 <div className="text-sm font-medium text-purple-600">Tổng số Users</div>
-                <div className="text-3xl font-bold text-purple-800 mt-2">{users.length}</div>
+                <div className="text-3xl font-bold text-purple-800 mt-2">{users?.length || 0}</div>
               </div>
 
               <div className="bg-amber-50 border border-amber-100 p-5 rounded-xl">
@@ -143,7 +143,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                   </tr>
                 </thead>
                 <tbody className="divide-y text-sm">
-                  {nodes.map((node, idx) => (
+                  {nodes?.map((node, idx) => (
                     <tr key={node._id || node.id || idx}>
                       <td className="p-3 font-medium text-gray-800">{node.title}</td>
                       <td className="p-3 text-gray-600">{node.clicks || node.click_count || 0}</td>
@@ -221,7 +221,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                             onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
                             className="w-full border rounded-lg px-3 py-2 text-sm pr-10"
                             placeholder="Nhập mật khẩu..."
-                            autoComplete="current-password"
+                            autoComplete="new-password"
                           />
                           <button
                             type="button"
@@ -331,7 +331,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                 className="flex items-center justify-between cursor-pointer bg-red-50 p-3 rounded-lg border border-red-100 hover:bg-red-100/60 transition select-none"
               >
                 <h3 className="text-md font-bold text-red-700 flex items-center gap-2 m-0">
-                  🛡️ Danh sách Admin ({adminList.length})
+                  🛡️ Danh sách Admin ({adminList?.length || 0})
                 </h3>
                 <span className="text-xs font-bold text-red-600 bg-white px-2.5 py-1 rounded border border-red-200">
                   {showSection?.admin ? '▲ Thu gọn' : '▼ Mở rộng'}
@@ -355,7 +355,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                      {adminList.length > 0 ? (
+                      {adminList?.length > 0 ? (
                         adminList.map((u, idx) => (
                           <tr key={u._id || `admin-${idx}`} className="hover:bg-red-50/30">
                             <td className="px-3 py-3 whitespace-nowrap font-mono text-xs font-bold text-red-600">
@@ -400,7 +400,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                 className="flex items-center justify-between cursor-pointer bg-purple-50 p-3 rounded-lg border border-purple-100 hover:bg-purple-100/60 transition select-none"
               >
                 <h3 className="text-md font-bold text-purple-700 flex items-center gap-2 m-0">
-                  👑 Danh sách Leader ({leaderList.length})
+                  👑 Danh sách Leader ({leaderList?.length || 0})
                 </h3>
                 <span className="text-xs font-bold text-purple-600 bg-white px-2.5 py-1 rounded border border-purple-200">
                   {showSection?.leader ? '▲ Thu gọn' : '▼ Mở rộng'}
@@ -424,7 +424,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                      {leaderList.length > 0 ? (
+                      {leaderList?.length > 0 ? (
                         leaderList.map((u, idx) => (
                           <tr key={u._id || `leader-${idx}`} className="hover:bg-purple-50/30">
                             <td className="px-3 py-3 whitespace-nowrap font-mono text-xs font-bold text-purple-600">
@@ -469,7 +469,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                 className="flex items-center justify-between cursor-pointer bg-blue-50 p-3 rounded-lg border border-blue-100 hover:bg-blue-100/60 transition select-none"
               >
                 <h3 className="text-md font-bold text-blue-700 flex items-center gap-2 m-0">
-                  👤 Danh sách User ({userList.length})
+                  👤 Danh sách User ({userList?.length || 0})
                 </h3>
                 <span className="text-xs font-bold text-blue-600 bg-white px-2.5 py-1 rounded border border-blue-200">
                   {showSection?.user ? '▲ Thu gọn' : '▼ Mở rộng'}
@@ -493,7 +493,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                      {userList.length > 0 ? (
+                      {userList?.length > 0 ? (
                         userList.map((u, idx) => (
                           <tr key={u._id || `user-${idx}`} className="hover:bg-blue-50/30">
                             <td className="px-3 py-3 whitespace-nowrap font-mono text-xs font-bold text-blue-600">
