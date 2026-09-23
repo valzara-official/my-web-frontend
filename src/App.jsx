@@ -12,6 +12,9 @@ export default function App() {
   const [nodes, setNodes] = useState([]);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  
+  // Thêm state quản lý tab hiện tại (mặc định là 'overview' - tổng quan)
+  const [currentTab, setCurrentTab] = useState('overview');
 
   // Lấy danh sách nodes/dịch vụ từ server (Public)
   const fetchNodes = useCallback(async () => {
@@ -54,6 +57,12 @@ export default function App() {
     initApp();
   }, [checkAuthStatus, fetchNodes]);
 
+  // Xử lý khi click vào logo để về trang chủ/tổng quan
+  const handleLogoClick = () => {
+    setCurrentTab('overview');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Xử lý khi click vào node: tăng lượt click rồi mở tab mới đến URL đích
   const handleNodeClick = async (node) => {
     const nodeId = node._id || node.id;
@@ -89,6 +98,7 @@ export default function App() {
         credentials: 'include',
       });
       setUser(null);
+      setCurrentTab('overview');
       alert('Đăng xuất thành công!');
     } catch (err) {
       console.error('Lỗi đăng xuất:', err);
@@ -111,13 +121,14 @@ export default function App() {
       {/* NAVBAR CHUNG */}
       <header className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          {/* LOGO: Bấm vào sẽ gọi handleLogoClick để về trang chủ */}
+          <div className="flex items-center gap-3 cursor-pointer" onClick={handleLogoClick}>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
               V
             </div>
             <div>
               <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Valzaria Hub
+                Valzaria
               </span>
               <span className="block text-[10px] text-gray-400 font-medium tracking-wide uppercase">
                 Enterprise Portal
@@ -160,21 +171,29 @@ export default function App() {
             onOpenAuth={() => setShowAuthModal(true)}
           />
         ) : user.role === 'ADMIN' ? (
-          /* ĐÃ SỬA: Truyền đủ nodes và refreshNodes vào AdminView */
           <AdminView
             nodes={nodes}
             refreshNodes={fetchNodes}
             handleLogout={handleLogout}
             API_BASE={API_BASE}
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
           />
         ) : user.role === 'LEADER' ? (
-          <LeaderView handleLogout={handleLogout} API_BASE={API_BASE} />
+          <LeaderView 
+            handleLogout={handleLogout} 
+            API_BASE={API_BASE} 
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
+          />
         ) : (
           <UserView
             user={user}
             nodes={nodes}
             onNodeClick={handleNodeClick}
             handleLogout={handleLogout}
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
           />
         )}
       </main>
