@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import IndexView from './views/IndexView';
 import UserView from './views/UserView';
 import LeaderView from './views/LeaderView';
@@ -12,29 +13,20 @@ export default function App() {
   const [nodes, setNodes] = useState([]);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  
-  // Thêm state quản lý tab hiện tại (mặc định là 'overview' - tổng quan)
-  const [currentTab, setCurrentTab] = useState('overview');
 
-  // Lấy danh sách nodes/dịch vụ từ server (Public)
   const fetchNodes = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/nodes`);
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setNodes(data);
-      }
+      if (Array.isArray(data)) setNodes(data);
     } catch (err) {
       console.error('Lỗi khi tải danh sách nodes:', err);
     }
   }, []);
 
-  // Kiểm tra phiên đăng nhập qua HttpOnly Cookie khi khởi động ứng dụng
   const checkAuthStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/check`, {
-        credentials: 'include',
-      });
+      const res = await fetch(`${API_BASE}/auth/check`, { credentials: 'include' });
       const data = await res.json();
       if (data.success && data.user) {
         setUser(data.user);
@@ -57,48 +49,26 @@ export default function App() {
     initApp();
   }, [checkAuthStatus, fetchNodes]);
 
-  // Xử lý khi click vào logo để về trang chủ/tổng quan
-  const handleLogoClick = () => {
-    setCurrentTab('overview');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Xử lý khi click vào node: tăng lượt click rồi mở tab mới đến URL đích
   const handleNodeClick = async (node) => {
     const nodeId = node._id || node.id;
     const targetUrl = node.url || node.target_url;
-
     if (nodeId) {
       try {
-        await fetch(`${API_BASE}/nodes/${nodeId}/click`, {
-          method: 'POST',
-        });
+        await fetch(`${API_BASE}/nodes/${nodeId}/click`, { method: 'POST' });
         setNodes((prevNodes) =>
-          prevNodes.map((n) =>
-            (n._id === nodeId || n.id === nodeId)
-              ? { ...n, clicks: (n.clicks || n.click_count || 0) + 1 }
-              : n
-          )
+          prevNodes.map((n) => (n._id === nodeId || n.id === nodeId ? { ...n, clicks: (n.clicks || 0) + 1 } : n))
         );
       } catch (err) {
         console.error('Không thể ghi nhận lượt click:', err);
       }
     }
-
-    if (targetUrl) {
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
-    }
+    if (targetUrl) window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
-  // Đăng xuất khỏi hệ thống
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
       setUser(null);
-      setCurrentTab('overview');
       alert('Đăng xuất thành công!');
     } catch (err) {
       console.error('Lỗi đăng xuất:', err);
@@ -117,103 +87,121 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans">
-      {/* NAVBAR CHUNG */}
-      <header className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-          {/* LOGO: Bấm vào sẽ gọi handleLogoClick để về trang chủ */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={handleLogoClick}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
-              V
-            </div>
-            <div>
-              <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Valzaria
-              </span>
-              <span className="block text-[10px] text-gray-400 font-medium tracking-wide uppercase">
-                Enterprise Portal
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {user ? (
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <div className="text-sm font-bold text-gray-800">{user.username}</div>
-                  <div className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wider">{user.role}</div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 px-3.5 py-2 rounded-xl text-xs font-semibold transition border border-gray-200"
-                >
-                  Đăng xuất
-                </button>
+    <BrowserRouter>
+      <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans">
+        {/* NAVBAR CHUNG */}
+        <header className="bg-white border-b sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+            <a href="/" className="flex items-center gap-3 cursor-pointer text-decoration-none">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                V
               </div>
-            ) : (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition"
-              >
-                Đăng nhập
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+              <div>
+                <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  Valzaria Hub
+                </span>
+                <span className="block text-[10px] text-gray-400 font-medium tracking-wide uppercase">
+                  Enterprise Portal
+                </span>
+              </div>
+            </a>
 
-      {/* MAIN BODY VIEW ROUTING */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!user ? (
-          <IndexView
-            nodes={nodes}
-            onNodeClick={handleNodeClick}
-            onOpenAuth={() => setShowAuthModal(true)}
-          />
-        ) : user.role === 'ADMIN' ? (
-          <AdminView
-            nodes={nodes}
-            refreshNodes={fetchNodes}
-            handleLogout={handleLogout}
+            <div className="flex items-center gap-4">
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-sm font-bold text-gray-800">{user.username}</div>
+                    <div className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wider">{user.role}</div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 px-3.5 py-2 rounded-xl text-xs font-semibold transition border border-gray-200"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition"
+                >
+                  Đăng nhập
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* ROUTING CÁC NHÁNH URL */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Routes>
+            {/* Trang chủ: valzaria.com */}
+            <Route
+              path="/"
+              element={
+                <IndexView
+                  nodes={nodes}
+                  onNodeClick={handleNodeClick}
+                  onOpenAuth={() => setShowAuthModal(true)}
+                />
+              }
+            />
+
+            {/* Trang Admin: valzaria.com/admin */}
+            <Route
+              path="/admin"
+              element={
+                user && user.role === 'ADMIN' ? (
+                  <AdminView nodes={nodes} refreshNodes={fetchNodes} handleLogout={handleLogout} API_BASE={API_BASE} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+
+            {/* Trang Leader: valzaria.com/leader */}
+            <Route
+              path="/leader"
+              element={
+                user && user.role === 'LEADER' ? (
+                  <LeaderView handleLogout={handleLogout} API_BASE={API_BASE} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+
+            {/* Trang User: valzaria.com/user */}
+            <Route
+              path="/user"
+              element={
+                user ? (
+                  <UserView user={user} nodes={nodes} onNodeClick={handleNodeClick} handleLogout={handleLogout} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+          </Routes>
+        </main>
+
+        {/* FOOTER */}
+        <footer className="bg-white border-t py-6 text-center text-xs text-gray-500">
+          <p>© {new Date().getFullYear()} Valzaria System. Bảo mật và phân quyền toàn diện.</p>
+        </footer>
+
+        {/* AUTH MODAL */}
+        {showAuthModal && !user && (
+          <AuthView
             API_BASE={API_BASE}
-            currentTab={currentTab}
-            setCurrentTab={setCurrentTab}
-          />
-        ) : user.role === 'LEADER' ? (
-          <LeaderView 
-            handleLogout={handleLogout} 
-            API_BASE={API_BASE} 
-            currentTab={currentTab}
-            setCurrentTab={setCurrentTab}
-          />
-        ) : (
-          <UserView
-            user={user}
-            nodes={nodes}
-            onNodeClick={handleNodeClick}
-            handleLogout={handleLogout}
-            currentTab={currentTab}
-            setCurrentTab={setCurrentTab}
+            onLoginSuccess={(loggedInUser) => {
+              setUser(loggedInUser);
+              setShowAuthModal(false);
+            }}
+            onClose={() => setShowAuthModal(false)}
           />
         )}
-      </main>
-
-      {/* FOOTER */}
-      <footer className="bg-white border-t py-6 text-center text-xs text-gray-500">
-        <p>© {new Date().getFullYear()} Valzaria System. Bảo mật và phân quyền toàn diện.</p>
-      </footer>
-
-      {/* AUTH MODAL */}
-      {showAuthModal && !user && (
-        <AuthView
-          API_BASE={API_BASE}
-          onLoginSuccess={(loggedInUser) => {
-            setUser(loggedInUser);
-            setShowAuthModal(false);
-          }}
-          onClose={() => setShowAuthModal(false)}
-        />
-      )}
-    </div>
+      </div>
+    </BrowserRouter>
   );
 }
