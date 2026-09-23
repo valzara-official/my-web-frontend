@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate, Link } from 'react-router-dom';
 import IndexView from './views/IndexView';
 import UserView from './views/UserView';
 import LeaderView from './views/LeaderView';
@@ -86,13 +86,21 @@ export default function App() {
     );
   }
 
+  // Xác định đường dẫn trang quản trị riêng theo role
+  const getDashboardPath = () => {
+    if (!user) return '/';
+    if (user.role === 'ADMIN') return '/admin';
+    if (user.role === 'LEADER') return '/leader';
+    return '/user';
+  };
+
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans">
         {/* NAVBAR CHUNG */}
         <header className="bg-white border-b sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-            <a href="/" className="flex items-center gap-3 cursor-pointer text-decoration-none">
+            <Link to="/" className="flex items-center gap-3 cursor-pointer text-decoration-none">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
                 V
               </div>
@@ -104,15 +112,19 @@ export default function App() {
                   Enterprise Portal
                 </span>
               </div>
-            </a>
+            </Link>
 
             <div className="flex items-center gap-4">
               {user ? (
                 <div className="flex items-center gap-3">
-                  <div className="text-right hidden sm:block">
+                  {/* Bấm vào phần tên/role sẽ chuyển đến trang tương ứng của role đó */}
+                  <Link 
+                    to={getDashboardPath()}
+                    className="text-right hidden sm:block hover:opacity-80 transition cursor-pointer bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100"
+                  >
                     <div className="text-sm font-bold text-gray-800">{user.username}</div>
                     <div className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wider">{user.role}</div>
-                  </div>
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 px-3.5 py-2 rounded-xl text-xs font-semibold transition border border-gray-200"
@@ -135,7 +147,6 @@ export default function App() {
         {/* ROUTING CÁC NHÁNH URL */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Routes>
-            {/* Trang chủ: valzaria.com */}
             <Route
               path="/"
               element={
@@ -146,8 +157,6 @@ export default function App() {
                 />
               }
             />
-
-            {/* Trang Admin: valzaria.com/admin */}
             <Route
               path="/admin"
               element={
@@ -158,8 +167,6 @@ export default function App() {
                 )
               }
             />
-
-            {/* Trang Leader: valzaria.com/leader */}
             <Route
               path="/leader"
               element={
@@ -170,8 +177,6 @@ export default function App() {
                 )
               }
             />
-
-            {/* Trang User: valzaria.com/user */}
             <Route
               path="/user"
               element={
