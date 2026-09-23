@@ -20,7 +20,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
     handleDeleteUser, handleSaveUser,
     totalClicks, formatMemberCode,
     adminList, leaderList, userList
-  } = useAdminLogic({ nodes, refreshNodes, API_BASE });
+  } = useAdminLogic(API_BASE);
 
   return (
     <div className="flex flex-col md:flex-row gap-6 min-h-[80vh]">
@@ -66,7 +66,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <h2 className="text-xl font-bold text-gray-800">Tổng quan hoạt động hệ thống</h2>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl">
                 <div className="text-sm font-medium text-blue-600">Tổng số Nodes hiện có</div>
