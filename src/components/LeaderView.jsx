@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import useAdminLogic from '../src/hooks/useAdminLogic';
+import useAdminLogic from "../hooks/useAdminLogic";
 
 export default function LeaderView({ handleLogout, API_BASE }) {
   const {
