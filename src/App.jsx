@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate, Link } from 'react-router-dom';
-import IndexView from '../components/IndexView';
-import UserView from '../components/UserView';
-import LeaderView from '../components/LeaderView';
-import AdminView from '../components/AdminView';
-import AuthView from '../components/AuthView';
+import IndexView from "./components/IndexView";
+import UserView from "./components/UserView";
+import LeaderView from "./components/LeaderView";
+import AdminView from "./components/AdminView";
+import AuthView from "./components/AuthView";
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://my-web-backend-i49k.onrender.com/api';
 
