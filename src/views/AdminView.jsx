@@ -1,5 +1,5 @@
 import React from 'react';
-import ChartComponent from './chart';
+import ChartComponent from '../modals/OverviewChart';
 import useAdminLogic from '../hooks/useAdminLogic';
 
 export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE }) {
@@ -70,15 +70,15 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
       {/* Main Content Area */}
       <div className="flex-1 bg-white p-6 rounded-xl shadow-sm border overflow-hidden">
-        
+
         {/* ================= TAB 1: TỔNG QUAN (4 PHẦN CHUYÊN SÂU) ================= */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            
+
             {/* PHẦN 1: Biểu đồ tăng trưởng tổng quan & Thống kê hệ thống */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
               <h3 className="text-lg font-bold text-gray-800">📈 Biểu đồ tăng trưởng hệ thống (User, Leader, Nodes)</h3>
-              
+
               {/* Thẻ thống kê nhanh bổ sung tổng lượng truy cập & tổng thời gian truy cập */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
@@ -370,7 +370,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
             {/* BẢNG 1: DANH SÁCH ADMIN */}
             <div className="space-y-3">
-              <div 
+              <div
                 onClick={() => toggleSection('admin')}
                 className="flex items-center justify-between cursor-pointer bg-red-50 p-3 rounded-lg border border-red-100 hover:bg-red-100/60 transition select-none"
               >
@@ -439,7 +439,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
             {/* BẢNG 2: DANH SÁCH LEADER */}
             <div className="space-y-3 pt-2">
-              <div 
+              <div
                 onClick={() => toggleSection('leader')}
                 className="flex items-center justify-between cursor-pointer bg-purple-50 p-3 rounded-lg border border-purple-100 hover:bg-purple-100/60 transition select-none"
               >
@@ -508,7 +508,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
             {/* BẢNG 3: DANH SÁCH USER */}
             <div className="space-y-3 pt-2">
-              <div 
+              <div
                 onClick={() => toggleSection('user')}
                 className="flex items-center justify-between cursor-pointer bg-blue-50 p-3 rounded-lg border border-blue-100 hover:bg-blue-100/60 transition select-none"
               >
