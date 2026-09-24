@@ -1,6 +1,6 @@
 import React from 'react';
-import ChartComponent from './chart';
-import useAdminLogic from '../hooks/useAdminLogic';
+import ChartComponent from './modals/OverviewChart';
+import useAdminLogic from './hooks/useAdminLogic';
 
 export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE }) {
   const {
