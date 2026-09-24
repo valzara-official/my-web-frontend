@@ -1,9 +1,9 @@
 import React from 'react';
-import useAdminLogic from '../src/hooks/useAdminLogic';
+import useAdminLogic from '../hooks/useAdminLogic';
 import AdminSidebar from './admin/AdminSidebar';
-import OverviewTab from '../src/views/admin/OverviewTab';
-import NodesTab from '../src/views/admin/NodesTab';
-import UsersTab from '../src/views/admin/UsersTab';
+import OverviewTab from './admin/OverviewTab';
+import NodesTab from './admin/NodesTab';
+import UsersTab from './admin/UsersTab';
 import UserModal from './admin/UserModal';
 
 export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE }) {
