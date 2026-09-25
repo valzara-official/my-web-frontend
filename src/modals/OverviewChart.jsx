@@ -33,14 +33,10 @@ export default function OverviewChart({ nodes = [], users = [] }) {
   const safeUsers = Array.isArray(users) ? users : [];
 
   const totalNodes = safeNodes.length;
-  const totalClicks = safeNodes.reduce((acc, curr) => acc + (curr.clicks || curr.click_count || 0), 0);
   const totalUsers = safeUsers.length;
-  const avgViewTime = safeNodes.length > 0 ? '1 phút 45 giây' : '0 giây';
 
-  // Phân tách danh sách User và Leader an toàn
-  const standardUsers = safeUsers.filter(u => u && u.role === 'USER');
-  const leaderUsers = safeUsers.filter(u => u && u.role === 'LEADER');
-  const adminUsers = safeUsers.filter(u => u && u.role === 'ADMIN');
+  // Phân tách danh sách Leader an toàn
+  const leaderUsers = safeUsers.filter(u => u && (u.role === 'LEADER' || u.role === 'leader'));
 
   // Biểu đồ cột 1: Lượt click theo Node
   const barChartData = {
@@ -58,7 +54,8 @@ export default function OverviewChart({ nodes = [], users = [] }) {
   // Biểu đồ tròn: Phân bổ vai trò User
   const roleCounts = safeUsers.reduce((acc, user) => {
     if (user && user.role) {
-      acc[user.role] = (acc[user.role] || 0) + 1;
+      const roleKey = user.role.toUpperCase();
+      acc[roleKey] = (acc[roleKey] || 0) + 1;
     }
     return acc;
   }, {});
@@ -74,7 +71,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
     ],
   };
 
-  // Biểu đồ 3 (MỚI): Biểu đồ đường thể hiện tăng trưởng tổng quan hệ thống (Nodes, Users, Leaders)
+  // Biểu đồ đường thể hiện tăng trưởng tổng hợp hệ thống (Nodes, Users, Leaders)
   const growthLineChartData = {
     labels: ['Khởi tạo', 'Giai đoạn 1', 'Giai đoạn 2', 'Hiện tại'],
     datasets: [
@@ -107,30 +104,8 @@ export default function OverviewChart({ nodes = [], users = [] }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-800">Tổng quan hoạt động hệ thống</h2>
-      
-      {/* Các thẻ chỉ số */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-xl">
-          <div className="text-sm font-medium text-indigo-600">Tổng số Nodes</div>
-          <div className="text-3xl font-bold text-indigo-800 mt-2">{totalNodes}</div>
-        </div>
-        <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-xl">
-          <div className="text-sm font-medium text-emerald-600">Tổng lượt truy cập</div>
-          <div className="text-3xl font-bold text-emerald-800 mt-2">{totalClicks}</div>
-        </div>
-        <div className="bg-purple-50 border border-purple-100 p-5 rounded-xl">
-          <div className="text-sm font-medium text-purple-600">Tổng số tài khoản</div>
-          <div className="text-3xl font-bold text-purple-800 mt-2">{totalUsers}</div>
-        </div>
-        <div className="bg-amber-50 border border-amber-100 p-5 rounded-xl">
-          <div className="text-sm font-medium text-amber-600">Thời gian view TB</div>
-          <div className="text-2xl font-bold text-amber-800 mt-2">{avgViewTime}</div>
-        </div>
-      </div>
-
       {/* Khu vực biểu đồ phân chia */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Biểu đồ 1: Lượt click theo Nodes */}
         <div className="bg-white p-5 rounded-xl border shadow-sm">
           <h3 className="text-sm font-bold text-gray-700 mb-4">📊 Lượt click theo liên kết (Nodes)</h3>
@@ -155,7 +130,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
           )}
         </div>
 
-        {/* Biểu đồ 3 (Đã thay thế): Biểu đồ đường tăng trưởng hệ thống (Nodes, Users, Leaders) */}
+        {/* Biểu đồ 3: Biểu đồ đường tăng trưởng hệ thống (Nodes, Users, Leaders) */}
         <div className="bg-white p-5 rounded-xl border shadow-sm lg:col-span-2">
           <h3 className="text-sm font-bold text-indigo-700 mb-4">📈 Biểu đồ tăng trưởng tổng hợp hệ thống (Nodes, User, Leader)</h3>
           {safeNodes.length === 0 && totalUsers === 0 ? (
