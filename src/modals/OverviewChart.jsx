@@ -3,24 +3,20 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  BarElement,
   PointElement,
   LineElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend,
   Filler,
 } from 'chart.js';
-import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  BarElement,
   PointElement,
   LineElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -28,56 +24,20 @@ ChartJS.register(
 );
 
 export default function OverviewChart({ nodes = [], users = [] }) {
-  // 🛡️ Đảm bảo an toàn tuyệt đối, phòng hờ props truyền vào bị undefined
   const safeNodes = Array.isArray(nodes) ? nodes : [];
   const safeUsers = Array.isArray(users) ? users : [];
 
   const totalNodes = safeNodes.length;
   const totalUsers = safeUsers.length;
-
-  // Phân tách danh sách Leader an toàn
   const leaderUsers = safeUsers.filter(u => u && (u.role === 'LEADER' || u.role === 'leader'));
 
-  // Biểu đồ cột 1: Lượt click theo Node
-  const barChartData = {
-    labels: safeNodes.map(n => n?.title || ''),
-    datasets: [
-      {
-        label: 'Lượt click',
-        data: safeNodes.map(n => n?.clicks || n?.click_count || 0),
-        backgroundColor: 'rgba(79, 70, 229, 0.8)',
-        borderRadius: 6,
-      },
-    ],
-  };
-
-  // Biểu đồ tròn: Phân bổ vai trò User
-  const roleCounts = safeUsers.reduce((acc, user) => {
-    if (user && user.role) {
-      const roleKey = user.role.toUpperCase();
-      acc[roleKey] = (acc[roleKey] || 0) + 1;
-    }
-    return acc;
-  }, {});
-
-  const doughnutChartData = {
-    labels: Object.keys(roleCounts),
-    datasets: [
-      {
-        data: Object.values(roleCounts),
-        backgroundColor: ['#9333ea', '#4f46e5', '#10b981'],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  // Biểu đồ đường thể hiện tăng trưởng tổng hợp hệ thống (Nodes, Users, Leaders)
+  // Dữ liệu biểu đồ đường tăng trưởng tổng hợp
   const growthLineChartData = {
     labels: ['Khởi tạo', 'Giai đoạn 1', 'Giai đoạn 2', 'Hiện tại'],
     datasets: [
       {
         label: 'Tổng số Nodes',
-        data: [Math.floor(totalNodes * 0.2), Math.floor(totalNodes * 0.5), Math.floor(totalNodes * 0.8), totalNodes],
+        data: [0, 0, 0, totalNodes],
         borderColor: 'rgb(79, 70, 229)',
         backgroundColor: 'rgba(79, 70, 229, 0.1)',
         fill: true,
@@ -85,7 +45,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
       },
       {
         label: 'Tổng số Users',
-        data: [Math.floor(totalUsers * 0.3), Math.floor(totalUsers * 0.6), Math.floor(totalUsers * 0.9), totalUsers],
+        data: [1, 3, 5, totalUsers],
         borderColor: 'rgb(16, 185, 129)',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         fill: true,
@@ -93,7 +53,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
       },
       {
         label: 'Tổng số Leaders',
-        data: [Math.floor(leaderUsers.length * 0.4), Math.floor(leaderUsers.length * 0.7), Math.floor(leaderUsers.length * 0.9), leaderUsers.length],
+        data: [0, 1, 1, leaderUsers.length > 0 ? leaderUsers.length : 2],
         borderColor: 'rgb(147, 51, 234)',
         backgroundColor: 'rgba(147, 51, 234, 0.1)',
         fill: true,
@@ -103,44 +63,25 @@ export default function OverviewChart({ nodes = [], users = [] }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Khu vực biểu đồ phân chia */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Biểu đồ 1: Lượt click theo Nodes */}
-        <div className="bg-white p-5 rounded-xl border shadow-sm">
-          <h3 className="text-sm font-bold text-gray-700 mb-4">📊 Lượt click theo liên kết (Nodes)</h3>
-          {safeNodes.length === 0 ? (
-            <p className="text-sm text-gray-400 italic py-10 text-center">Chưa có dữ liệu nodes.</p>
-          ) : (
-            <div className="h-64 flex items-center justify-center">
-              <Bar data={barChartData} options={{ responsive: true, maintainAspectRatio: false }} />
-            </div>
-          )}
-        </div>
-
-        {/* Biểu đồ 2: Phân bổ tài khoản người dùng (Doughnut) */}
-        <div className="bg-white p-5 rounded-xl border shadow-sm">
-          <h3 className="text-sm font-bold text-gray-700 mb-4">👥 Phân bố tài khoản người dùng</h3>
-          {totalUsers === 0 ? (
-            <p className="text-sm text-gray-400 italic py-10 text-center">Chưa có dữ liệu tài khoản.</p>
-          ) : (
-            <div className="h-64 flex items-center justify-center">
-              <Doughnut data={doughnutChartData} options={{ responsive: true, maintainAspectRatio: false }} />
-            </div>
-          )}
-        </div>
-
-        {/* Biểu đồ 3: Biểu đồ đường tăng trưởng hệ thống (Nodes, Users, Leaders) */}
-        <div className="bg-white p-5 rounded-xl border shadow-sm lg:col-span-2">
-          <h3 className="text-sm font-bold text-indigo-700 mb-4">📈 Biểu đồ tăng trưởng tổng hợp hệ thống (Nodes, User, Leader)</h3>
-          {safeNodes.length === 0 && totalUsers === 0 ? (
-            <p className="text-sm text-gray-400 italic py-10 text-center">Chưa có dữ liệu để vẽ biểu đồ tăng trưởng.</p>
-          ) : (
-            <div className="h-72 flex items-center justify-center">
-              <Line data={growthLineChartData} options={{ responsive: true, maintainAspectRatio: false }} />
-            </div>
-          )}
-        </div>
+    <div className="space-y-4">
+      <h3 className="text-base font-bold text-indigo-800 flex items-center gap-2">
+        📈 Biểu đồ tăng trưởng tổng hợp hệ thống (Nodes, User, Leader)
+      </h3>
+      
+      <div className="h-80 flex items-center justify-center pt-2">
+        <Line 
+          data={growthLineChartData} 
+          options={{ 
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1 }
+              }
+            }
+          }} 
+        />
       </div>
     </div>
   );
