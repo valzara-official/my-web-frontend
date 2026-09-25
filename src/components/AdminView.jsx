@@ -97,6 +97,3 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
     </div>
   );
 }
-
-
-// cập nhật đi
