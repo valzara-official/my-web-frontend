@@ -1,5 +1,5 @@
 import React from 'react';
-import ChartComponent from '../modals/OverviewChart';
+import ChartComponent from '../../modals/OverviewChart';
 
 export default function OverviewTab({ nodes, users, totalClicks, systemStats, leaderList }) {
   return (
