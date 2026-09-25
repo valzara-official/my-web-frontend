@@ -36,26 +36,26 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
   return (
     <div className="flex flex-col md:flex-row gap-6 min-h-[80vh]">
       {/* 1. Sidebar Điều hướng */}
-      <AdminSidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        handleLogout={handleLogout} 
+      <AdminSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        handleLogout={handleLogout}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 bg-white p-6 rounded-xl shadow-sm border overflow-hidden">
         {activeTab === 'overview' && (
-          <OverviewTab 
-            nodes={nodes} 
-            users={users} 
-            totalClicks={totalClicks} 
-            systemStats={systemStats} 
-            leaderList={leaderList} 
+          <OverviewTab
+            nodes={nodes}
+            users={users}
+            totalClicks={totalClicks}
+            systemStats={systemStats}
+            leaderList={leaderList}
           />
         )}
 
         {activeTab === 'nodes' && (
-          <NodesTab 
+          <NodesTab
             nodes={nodes}
             nodeForm={nodeForm}
             setNodeForm={setNodeForm}
@@ -68,7 +68,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
         {activeTab === 'users' && (
           <>
-            <UsersTab 
+            <UsersTab
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               showSection={showSection}
@@ -81,7 +81,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
               handleOpenEditModal={handleOpenEditModal}
               handleDeleteUser={handleDeleteUser}
             />
-            <UserModal 
+            <UserModal
               showModal={showModal}
               setShowModal={setShowModal}
               isEditingUser={isEditingUser}
@@ -97,3 +97,6 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
     </div>
   );
 }
+
+
+// cập nhật đi
