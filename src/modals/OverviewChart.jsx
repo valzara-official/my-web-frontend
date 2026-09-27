@@ -31,7 +31,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
   const totalUsers = safeUsers.length;
   const leaderUsers = safeUsers.filter(u => u && (u.role === 'LEADER' || u.role === 'leader'));
 
-  // Dữ liệu biểu đồ đường tăng trưởng tổng hợp
+  // Dữ liệu biểu đồ đường tăng trưởng tổng hợp hệ thống
   const growthLineChartData = {
     labels: ['Khởi tạo', 'Giai đoạn 1', 'Giai đoạn 2', 'Hiện tại'],
     datasets: [
@@ -64,15 +64,15 @@ export default function OverviewChart({ nodes = [], users = [] }) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-base font-bold text-indigo-800 flex items-center gap-2">
+      <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
         📈 Biểu đồ tăng trưởng tổng hợp hệ thống (Nodes, User, Leader)
       </h3>
-      
+
       <div className="h-80 flex items-center justify-center pt-2">
-        <Line 
-          data={growthLineChartData} 
-          options={{ 
-            responsive: true, 
+        <Line
+          data={growthLineChartData}
+          options={{
+            responsive: true,
             maintainAspectRatio: false,
             scales: {
               y: {
@@ -80,7 +80,7 @@ export default function OverviewChart({ nodes = [], users = [] }) {
                 ticks: { stepSize: 1 }
               }
             }
-          }} 
+          }}
         />
       </div>
     </div>
