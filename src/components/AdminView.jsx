@@ -1,6 +1,5 @@
 import React from 'react';
 import useAdminLogic from '../hooks/useAdminLogic';
-import AdminSidebar from './admin/AdminSidebar';
 import NodesTab from './admin/NodesTab';
 import UsersTab from './admin/UsersTab';
 import UserModal from './admin/UserModal';
