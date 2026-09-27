@@ -35,15 +35,16 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
 
   return (
     <div className="flex flex-col md:flex-row gap-6 min-h-[80vh]">
-      {/* 1. Sidebar Điều hướng */}
+      {/* 1. Sidebar điều hướng hệ thống */}
       <AdminSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         handleLogout={handleLogout}
       />
 
-      {/* Main Content Area */}
+      {/* 2. Khu vực hiển thị nội dung chính theo Tab được chọn */}
       <div className="flex-1 bg-white p-6 rounded-xl shadow-sm border overflow-hidden">
+        {/* Tab Tổng quan */}
         {activeTab === 'overview' && (
           <OverviewTab
             nodes={nodes}
@@ -54,6 +55,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
           />
         )}
 
+        {/* Tab Quản lý Nodes / Liên kết */}
         {activeTab === 'nodes' && (
           <NodesTab
             nodes={nodes}
@@ -66,6 +68,7 @@ export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE 
           />
         )}
 
+        {/* Tab Quản lý Người dùng & Modal */}
         {activeTab === 'users' && (
           <>
             <UsersTab
