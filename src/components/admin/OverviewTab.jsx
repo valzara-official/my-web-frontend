@@ -33,7 +33,7 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
 
   const totalNodes = safeNodes.length;
   const totalUsers = safeUsers.length;
-  
+
   const adminUsers = safeUsers.filter(u => u && (u.role === 'ADMIN' || u.role === 'admin')).length;
   const leaderUsers = safeUsers.filter(u => u && (u.role === 'LEADER' || u.role === 'leader')).length;
   const regularUsers = Math.max(0, totalUsers - adminUsers - leaderUsers);
@@ -104,29 +104,6 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
           <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl">
             <div className="text-xs font-medium text-amber-600">Thời gian view TB</div>
             <div className="text-2xl font-bold text-amber-800 mt-1">{systemStats?.avgViewTime || '0 giây'}</div>
-          </div>
-        </div>
-
-        {/* 2 Khung biểu đồ thành phần */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
-          <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex flex-col justify-between h-72">
-            <h4 className="text-sm font-semibold text-gray-700">📊 Lượt click theo liên kết (Nodes)</h4>
-            <div className="flex-1 flex items-center justify-center">
-              {safeNodes.length === 0 ? (
-                <span className="text-sm text-gray-400 italic">Chưa có dữ liệu nodes.</span>
-              ) : (
-                <span className="text-sm text-gray-500">Đã kết nối {safeNodes.length} nodes</span>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex flex-col justify-between h-72">
-            <h4 className="text-sm font-semibold text-gray-700">👥 Phân bố tài khoản người dùng</h4>
-            <div className="flex-1 flex items-center justify-center relative">
-              <div className="w-48 h-48">
-                <Doughnut data={userRoleData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }} />
-              </div>
-            </div>
           </div>
         </div>
       </div>
