@@ -1,5 +1,4 @@
 import React from 'react';
-import useAdminLogic from '../hooks/useAdminLogic';
 
 export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE }) {
   const {
