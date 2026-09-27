@@ -12,7 +12,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
-import { Line, Doughnut, Bar } from 'react-chartjs-2';
+import { Line, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -34,12 +34,10 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
   const totalNodes = safeNodes.length;
   const totalUsers = safeUsers.length;
   
-  // Thống kê phân loại user
   const adminUsers = safeUsers.filter(u => u && (u.role === 'ADMIN' || u.role === 'admin')).length;
   const leaderUsers = safeUsers.filter(u => u && (u.role === 'LEADER' || u.role === 'leader')).length;
   const regularUsers = Math.max(0, totalUsers - adminUsers - leaderUsers);
 
-  // Dữ liệu biểu đồ tròn phân bổ tài khoản
   const userRoleData = {
     labels: ['ADMIN', 'LEADER', 'USER'],
     datasets: [
@@ -51,7 +49,6 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
     ],
   };
 
-  // Dữ liệu biểu đồ tăng trưởng tổng hợp hệ thống
   const growthLineChartData = {
     labels: ['Khởi tạo', 'Giai đoạn 1', 'Giai đoạn 2', 'Hiện tại'],
     datasets: [
@@ -84,7 +81,7 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
 
   return (
     <div className="space-y-6">
-      {/* Tiêu đề & 4 Ô thống kê tổng quan hệ thống */}
+      {/* Tiêu đề & 4 Ô thống kê tổng quan hệ thống (Chỉ có duy nhất 1 khối này) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
         <h3 className="text-base font-bold text-gray-800">Tổng quan hoạt động hệ thống</h3>
 
@@ -110,36 +107,24 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
           </div>
         </div>
 
-        {/* 2 Khung biểu đồ thành phần ngang nhau */}
+        {/* 2 Khung biểu đồ thành phần */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
-          {/* Lượt click theo liên kết (Nodes) */}
           <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex flex-col justify-between h-72">
-            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              📊 Lượt click theo liên kết (Nodes)
-            </h4>
+            <h4 className="text-sm font-semibold text-gray-700">📊 Lượt click theo liên kết (Nodes)</h4>
             <div className="flex-1 flex items-center justify-center">
               {safeNodes.length === 0 ? (
                 <span className="text-sm text-gray-400 italic">Chưa có dữ liệu nodes.</span>
               ) : (
-                <div className="w-full h-full">
-                  {/* Có thể render danh sách hoặc biểu đồ cột nhỏ cho nodes ở đây */}
-                  <span className="text-sm text-gray-500">Đã kết nối {safeNodes.length} nodes</span>
-                </div>
+                <span className="text-sm text-gray-500">Đã kết nối {safeNodes.length} nodes</span>
               )}
             </div>
           </div>
 
-          {/* Phân bố tài khoản người dùng */}
           <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex flex-col justify-between h-72">
-            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              👥 Phân bố tài khoản người dùng
-            </h4>
+            <h4 className="text-sm font-semibold text-gray-700">👥 Phân bố tài khoản người dùng</h4>
             <div className="flex-1 flex items-center justify-center relative">
               <div className="w-48 h-48">
-                <Doughnut 
-                  data={userRoleData} 
-                  options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }} 
-                />
+                <Doughnut data={userRoleData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }} />
               </div>
             </div>
           </div>
@@ -153,18 +138,13 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
         </h3>
 
         <div className="h-80 flex items-center justify-center pt-2">
-          <Line 
-            data={growthLineChartData} 
-            options={{ 
-              responsive: true, 
+          <Line
+            data={growthLineChartData}
+            options={{
+              responsive: true,
               maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: { stepSize: 1 }
-                }
-              }
-            }} 
+              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }}
           />
         </div>
       </div>
