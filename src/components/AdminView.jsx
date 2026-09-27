@@ -1,8 +1,5 @@
 import React from 'react';
 import useAdminLogic from '../hooks/useAdminLogic';
-import NodesTab from './admin/NodesTab';
-import UsersTab from './admin/UsersTab';
-import UserModal from './admin/UserModal';
 
 export default function AdminView({ nodes, refreshNodes, handleLogout, API_BASE }) {
   const {
