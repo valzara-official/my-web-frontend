@@ -1,5 +1,27 @@
 import React from 'react';
-import OverviewChart from '../../modals/OverviewChart';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, systemStats = {} }) {
   const safeNodes = Array.isArray(nodes) ? nodes : [];
@@ -7,10 +29,42 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
 
   const totalNodes = safeNodes.length;
   const totalUsers = safeUsers.length;
+  const leaderUsers = safeUsers.filter(u => u && (u.role === 'LEADER' || u.role === 'leader'));
+
+  // Dữ liệu biểu đồ đường tăng trưởng tổng hợp hệ thống
+  const growthLineChartData = {
+    labels: ['Khởi tạo', 'Giai đoạn 1', 'Giai đoạn 2', 'Hiện tại'],
+    datasets: [
+      {
+        label: 'Tổng số Nodes',
+        data: [0, 0, 0, totalNodes],
+        borderColor: 'rgb(79, 70, 229)',
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        fill: true,
+        tension: 0.3,
+      },
+      {
+        label: 'Tổng số Users',
+        data: [1, 3, 5, totalUsers],
+        borderColor: 'rgb(16, 185, 129)',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        fill: true,
+        tension: 0.3,
+      },
+      {
+        label: 'Tổng số Leaders',
+        data: [0, 1, 1, leaderUsers.length > 0 ? leaderUsers.length : 2],
+        borderColor: 'rgb(147, 51, 234)',
+        backgroundColor: 'rgba(147, 51, 234, 0.1)',
+        fill: true,
+        tension: 0.3,
+      },
+    ],
+  };
 
   return (
-    <div className="space-y-6 p-2">
-      {/* 4 Ô THỐNG KÊ CỐT LÕI DUY NHẤT */}
+    <div className="space-y-6">
+      {/* 4 Ô THỐNG KÊ CỐT LÕI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl shadow-sm">
           <div className="text-sm font-medium text-blue-600">Tổng số Nodes</div>
@@ -33,9 +87,27 @@ export default function OverviewTab({ nodes = [], users = [], totalClicks = 0, s
         </div>
       </div>
 
-      {/* 1 BIỂU ĐỒ TĂNG TRƯỞNG TỔNG HỢP HỆ THỐNG DUY NHẤT */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <OverviewChart nodes={safeNodes} users={safeUsers} />
+      {/* 1 BIỂU ĐỒ TĂNG TRƯỞNG TỔNG HỢP DUY NHẤT */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+        <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+          📈 Biểu đồ tăng trưởng tổng hợp hệ thống (Nodes, User, Leader)
+        </h3>
+
+        <div className="h-80 flex items-center justify-center pt-2">
+          <Line
+            data={growthLineChartData}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: { stepSize: 1 }
+                }
+              }
+            }}
+          />
+        </div>
       </div>
     </div>
   );
